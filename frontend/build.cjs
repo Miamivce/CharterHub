@@ -17,6 +17,14 @@ process.env.SKIP_TYPESCRIPT_CHECK = 'true';
 process.env.VITE_SKIP_TS_CHECK = 'true';
 process.env.TSC_COMPILE_ON_ERROR = 'true';
 
+// List all environment variables with VITE_ prefix for debugging
+console.log('Environment variables for build:');
+Object.keys(process.env)
+  .filter(key => key.startsWith('VITE_'))
+  .forEach(key => {
+    console.log(`${key}: ${process.env[key]}`);
+  });
+
 // Create a temporary index.html in the src directory if it doesn't exist
 const srcDir = path.join(__dirname, 'src');
 const srcIndexPath = path.join(srcDir, 'index.html');
@@ -59,25 +67,68 @@ try {
   
   fs.writeFileSync(path.join(__dirname, 'build-package.json'), JSON.stringify(packageJson, null, 2));
   
-  // Create an inline Vite config directly in JavaScript
-  console.log('Creating inline Vite configuration');
+  // Create an enhanced Vite config that properly injects environment variables
+  console.log('Creating enhanced Vite configuration');
   const inlineConfig = `
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    minify: true,
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  // Load env file based on mode in the current directory
+  const env = process.env;
+  
+  console.log('Building with mode:', mode);
+  
+  // Output environment variables for debugging
+  Object.keys(env)
+    .filter(key => key.startsWith('VITE_'))
+    .forEach(key => {
+      console.log(\`Using \${key}: \${env[key]}\`);
+    });
+
+  return {
+    plugins: [react()],
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      minify: true,
+      cssCodeSplit: true,
+      sourcemap: false,
+      assetsInlineLimit: 4096,
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: [
+              'react', 
+              'react-dom', 
+              'react-router-dom'
+            ],
+            ui: [
+              '@headlessui/react',
+              '@mui/material',
+              '@mui/icons-material'
+            ]
+          }
+        }
+      }
     },
-  },
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src')
+      }
+    },
+    define: {
+      // Inject environment variables explicitly
+      // This ensures they're available at runtime through import.meta.env
+      ${Object.keys(process.env)
+        .filter(key => key.startsWith('VITE_'))
+        .map(key => `'import.meta.env.${key}': JSON.stringify(process.env['${key}'])`)
+        .join(',\n      ')}
+    }
+  };
 });
   `;
   
@@ -168,9 +219,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CharterHub</title>
   <script>
-    // This is a debug version, load the app from source
-    window.location.href = '/src/index.html';
+    // Debug information
+    console.log('Environment variables:', {
+      ${Object.keys(process.env)
+        .filter(key => key.startsWith('VITE_'))
+        .map(key => `'${key}': '${process.env[key]}'`)
+        .join(',\n      ')}
+    });
   </script>
+  <script type="module" src="/src/main.tsx"></script>
 </head>
 <body>
   <div id="root">Loading CharterHub...</div>
