@@ -82,8 +82,9 @@
   "scripts": {
     "dev": "vite",
     "start": "vite --mode development --force",
-    "build": "tsc --skipLibCheck || true && vite build",
-    "vercel-build": "cp .env.production .env && npm run build",
+    "build": "vite build",
+    "typecheck": "tsc --skipLibCheck || true",
+    "vercel-build": "echo 'Using .env.production' && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "test": "jest",

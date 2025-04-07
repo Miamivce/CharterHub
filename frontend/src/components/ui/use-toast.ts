@@ -46,32 +46,35 @@ const useToast = (): ToastContext => {
   }
 }
 
-// Create a callable toast function
-const createToast = (props: ToastProps) => {
-  // Implement toast display logic here
+function createToast(props: ToastProps) {
   console.log('Toast created:', props)
 }
 
-// Export as a callable function with methods
-export const toast = Object.assign(
-  createToast,
-  {
-    success: (props: ToastProps) => {
-      console.log('Toast success:', props)
-    },
-    error: (props: ToastProps) => {
-      console.log('Toast error:', props)
-    },
-    warning: (props: ToastProps) => {
-      console.log('Toast warning:', props)
-    },
-    info: (props: ToastProps) => {
-      console.log('Toast info:', props)
-    },
-    custom: (props: ToastProps) => {
-      console.log('Toast custom:', props)
-    },
+// Define toast methods
+const toastMethods = {
+  success: (props: ToastProps) => {
+    console.log('Toast success:', props)
+  },
+  error: (props: ToastProps) => {
+    console.log('Toast error:', props)
+  },
+  warning: (props: ToastProps) => {
+    console.log('Toast warning:', props)
+  },
+  info: (props: ToastProps) => {
+    console.log('Toast info:', props)
+  },
+  custom: (props: ToastProps) => {
+    console.log('Toast custom:', props)
   }
-)
+}
+
+// Create a callable function with methods attached
+export const toast = function(props: ToastProps) {
+  return createToast(props)
+} as unknown as typeof createToast & typeof toastMethods
+
+// Attach methods to the toast function
+Object.assign(toast, toastMethods)
 
 export { useToast }
