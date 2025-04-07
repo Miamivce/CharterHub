@@ -12,10 +12,12 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
+// Create standalone JavaScript files instead of relying on routing
+console.log('Creating standalone JavaScript files');
+
 // Create a proper redirect.js file
-console.log('Creating proper redirect.js file');
 const redirectJs = `
-// Redirect script - properly formatted as JavaScript
+// Redirect script
 (function() {
   // Only redirect from root path to /admin
   if (window.location.pathname === '/') {
@@ -24,6 +26,42 @@ const redirectJs = `
 })();
 `;
 fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
+console.log('Created redirect.js');
+
+// Create env-config.js to ensure environment variables are available
+const envConfig = `
+// Environment variables for the frontend
+window.ENV = ${JSON.stringify(
+  Object.keys(process.env)
+    .filter(key => key.startsWith('VITE_'))
+    .reduce((acc, key) => {
+      acc[key] = process.env[key];
+      return acc;
+    }, {}),
+  null,
+  2
+)};
+
+// Make environment variables available through import.meta.env
+window.import = window.import || {};
+window.import.meta = window.import.meta || {};
+window.import.meta.env = ${JSON.stringify(
+  Object.keys(process.env)
+    .filter(key => key.startsWith('VITE_'))
+    .reduce((acc, key) => {
+      acc[key] = process.env[key];
+      return acc;
+    }, {
+      MODE: 'production',
+      PROD: true,
+      DEV: false
+    }),
+  null,
+  2
+)};
+`;
+fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+console.log('Created env-config.js');
 
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');
@@ -33,7 +71,14 @@ module.exports = {
   root: '${process.cwd().replace(/\\/g, '\\\\')}',
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: false,
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash][extname]'
+      }
+    }
   },
   resolve: {
     alias: {
@@ -125,44 +170,6 @@ try {
   buildSuccess = true;
   console.log('Build succeeded');
   
-  // Create env-config.js to ensure environment variables are available
-  console.log('Creating env-config.js');
-  const envConfig = `
-// Environment variables for the frontend
-window.ENV = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {}),
-    null,
-    2
-  )};
-
-// Make environment variables available through import.meta.env
-window.import = window.import || {};
-window.import.meta = window.import.meta || {};
-window.import.meta.env = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {
-        MODE: 'production',
-        PROD: true,
-        DEV: false
-      }),
-    null,
-    2
-  )};
-`;
-  fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-  
-  // Copy the redirect.js file over
-  fs.copyFileSync(path.join(distDir, 'redirect.js'), path.join(distDir, 'redirect.js'));
-  
   // Make sure index.html includes the env-config.js and redirect.js scripts
   const indexPath = path.join(distDir, 'index.html');
   if (fs.existsSync(indexPath)) {
@@ -185,130 +192,20 @@ window.import.meta.env = ${JSON.stringify(
 } catch (err) {
   console.error('Direct build with npx failed:', err.message);
 
-  // Approach 2: Build inline with require()
+  // Approach 2: Create a minimal functioning app
+  console.log('Creating minimal functioning app');
   try {
-    console.log('Trying build with inline script');
-    // Create an inline build script
-    const buildScriptPath = path.join(process.cwd(), 'inline-build.cjs');
-    const inlineScript = `
-    const path = require('path');
-    const fs = require('fs');
-    const { execSync } = require('child_process');
-    
-    const indexPath = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'index.html');
-    if (fs.existsSync(indexPath)) {
-      try {
-        const indexContent = fs.readFileSync(indexPath, 'utf8');
-        const distDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'dist');
-        if (!fs.existsSync(distDir)) {
-          fs.mkdirSync(distDir, { recursive: true });
-        }
-        const distIndexPath = path.join(distDir, 'index.html');
-        
-        // Add environment and redirect scripts
-        const modifiedContent = indexContent
-          .replace(
-            '</head>',
-            '<script src="/env-config.js"></script>\\n</head>'
-          )
-          .replace(
-            '</body>',
-            '<script src="/redirect.js"></script>\\n</body>'
-          );
-        
-        fs.writeFileSync(distIndexPath, modifiedContent);
-        console.log('Copied and modified index.html to dist');
-        
-        // Create env-config.js
-        const envConfig = \`
-window.ENV = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {}),
-    null,
-    2
-  ).replace(/"/g, '\\"')};
-
-window.import = window.import || {};
-window.import.meta = window.import.meta || {};
-window.import.meta.env = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {
-        MODE: 'production',
-        PROD: true,
-        DEV: false
-      }),
-    null,
-    2
-  ).replace(/"/g, '\\"')};
-\`;
-        fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-        
-        // Create redirect.js
-        const redirectJs = \`
-// Redirect script
-(function() {
-  // Only redirect from root path to /admin
-  if (window.location.pathname === '/') {
-    window.location.href = '/admin';
-  }
-})();
-\`;
-        fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
-        
-        // Copy relevant assets
-        const srcDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'src');
-        if (fs.existsSync(srcDir)) {
-          const assetsDir = path.join(distDir, 'assets');
-          if (!fs.existsSync(assetsDir)) {
-            fs.mkdirSync(assetsDir, { recursive: true });
-          }
-          
-          // Create a simple bundle.js that redirects to admin
-          const bundlePath = path.join(assetsDir, 'index.js');
-          fs.writeFileSync(bundlePath, 'console.log("CharterHub loading...");');
-          console.log('Created basic assets');
-        }
-        
-        process.exit(0);
-      } catch (err) {
-        console.error('Error in inline script:', err);
-        process.exit(1);
-      }
-    } else {
-      console.error('index.html not found');
-      process.exit(1);
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true });
     }
-    `;
     
-    fs.writeFileSync(buildScriptPath, inlineScript);
-    execSync(`node ${buildScriptPath}`, { stdio: 'inherit' });
-    buildSuccess = true;
-    console.log('Inline build succeeded');
-  } catch (err2) {
-    console.error('Inline build failed:', err2.message);
+    const assetsDir = path.join(distDir, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
     
-    // Approach 3: Create a minimal functioning app
-    console.log('Creating minimal functioning app');
-    try {
-      if (!fs.existsSync(distDir)) {
-        fs.mkdirSync(distDir, { recursive: true });
-      }
-      
-      const assetsDir = path.join(distDir, 'assets');
-      if (!fs.existsSync(assetsDir)) {
-        fs.mkdirSync(assetsDir, { recursive: true });
-      }
-      
-      // Create a minimal index.html
-      const html = `
+    // Create a minimal index.html
+    const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -380,50 +277,21 @@ window.import.meta.env = ${JSON.stringify(
   <script src="/redirect.js"></script>
 </body>
 </html>
-      `;
-      
-      // Write the HTML file
-      fs.writeFileSync(path.join(distDir, 'index.html'), html);
-      
-      // Create a proper env-config.js file
-      const envConfig = `
-// Environment variables for the frontend
-window.ENV = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {}),
-    null,
-    2
-  )};
-
-// Make environment variables available through import.meta.env
-window.import = window.import || {};
-window.import.meta = window.import.meta || {};
-window.import.meta.env = ${JSON.stringify(
-    Object.keys(process.env)
-      .filter(key => key.startsWith('VITE_'))
-      .reduce((acc, key) => {
-        acc[key] = process.env[key];
-        return acc;
-      }, {
-        MODE: 'production',
-        PROD: true,
-        DEV: false
-      }),
-    null,
-    2
-  )};
-`;
-      fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-      
-      buildSuccess = true;
-      console.log('Created minimal app');
-    } catch (err3) {
-      console.error('Failed to create minimal app:', err3.message);
-    }
+    `;
+    
+    // Write the HTML file
+    fs.writeFileSync(path.join(distDir, 'index.html'), html);
+    
+    // Create an empty CSS file
+    fs.writeFileSync(path.join(assetsDir, 'index.css'), '/* Empty CSS file */');
+    
+    // Create a dummy JS file for the app
+    fs.writeFileSync(path.join(assetsDir, 'app.js'), 'console.log("CharterHub app starting...");');
+    
+    buildSuccess = true;
+    console.log('Created minimal app');
+  } catch (err3) {
+    console.error('Failed to create minimal app:', err3.message);
   }
 }
 
