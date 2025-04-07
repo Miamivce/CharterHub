@@ -3,6 +3,14 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "rootDirectory": "frontend",
+  "env": {
+    "VITE_API_BASE_URL": "https://charterhub-api.onrender.com",
+    "VITE_API_URL": "https://charterhub-api.onrender.com",
+    "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
+    "VITE_WP_API_URL": "",
+    "VITE_USE_JWT": "true",
+    "VITE_FRONTEND_URL": "https://app.charterhub.com"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

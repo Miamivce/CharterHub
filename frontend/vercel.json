@@ -1,7 +1,12 @@
 {
   "build": {
     "env": {
-      "VITE_API_BASE_URL": "https://charterhub-api.onrender.com"
+      "VITE_API_BASE_URL": "https://charterhub-api.onrender.com",
+      "VITE_API_URL": "https://charterhub-api.onrender.com",
+      "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
+      "VITE_WP_API_URL": "",
+      "VITE_USE_JWT": "true",
+      "VITE_FRONTEND_URL": "https://app.charterhub.com"
     }
   },
   "routes": [
@@ -12,6 +17,14 @@
     {
       "src": "^/favicon.ico",
       "dest": "/favicon.ico"
+    },
+    {
+      "src": "^/api/(.*)",
+      "dest": "https://charterhub-api.onrender.com/api/$1"
+    },
+    {
+      "src": "^/auth/(.*)",
+      "dest": "https://charterhub-api.onrender.com/auth/$1"
     },
     {
       "src": "^/(.*)",
