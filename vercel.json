@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd frontend && node build.cjs",
-  "installCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --no-fund",
+  "installCommand": "npm install -g vite@5.4.14 @vitejs/plugin-react@4.3.4 esbuild",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
   "rewrites": [
@@ -10,5 +10,8 @@
     "SKIP_TYPESCRIPT_CHECK": "true",
     "VITE_SKIP_TS_CHECK": "true",
     "TSC_COMPILE_ON_ERROR": "true"
+  },
+  "buildEnvironment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
   }
 } 
