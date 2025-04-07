@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && npm install --no-fund && node build.cjs",
+  "buildCommand": "cd frontend && npm install && node build.cjs",
   "installCommand": "echo Skipping global install",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
@@ -10,6 +10,7 @@
   "env": {
     "SKIP_TYPESCRIPT_CHECK": "true",
     "VITE_SKIP_TS_CHECK": "true",
-    "TSC_COMPILE_ON_ERROR": "true"
+    "TSC_COMPILE_ON_ERROR": "true",
+    "NPM_FLAGS": "--legacy-peer-deps"
   }
 } 
