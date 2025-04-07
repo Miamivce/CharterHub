@@ -21,6 +21,13 @@ Object.keys(process.env)
     viteEnvVars[key] = process.env[key];
   });
 
+// Set default API URLs if not provided
+if (!viteEnvVars.VITE_API_URL && !viteEnvVars.VITE_PHP_API_URL) {
+  console.log('No API URL found in environment. Setting default API URL.');
+  viteEnvVars.VITE_API_URL = 'https://charterhub-api.onrender.com';
+  console.log(`VITE_API_URL: ${viteEnvVars.VITE_API_URL}`);
+}
+
 // Set production mode explicitly
 viteEnvVars.VITE_ENV = viteEnvVars.VITE_ENV || 'production';
 viteEnvVars.VITE_DEBUG = viteEnvVars.VITE_DEBUG || 'false';
@@ -74,14 +81,22 @@ if (document.readyState === 'complete') {
 const redirectScriptPath = path.join(distDir, 'redirect.js');
 fs.writeFileSync(redirectScriptPath, redirectScript);
 
-try {
-  console.log('Creating a fully functional admin interface...');
-  
-  // Create admin interface with ESM imports
-  fs.writeFileSync(path.join(distDir, 'assets', 'app.js'), `
+// Create assets directory if it doesn't exist
+const assetsDir = path.join(distDir, 'assets');
+if (!fs.existsSync(assetsDir)) {
+  fs.mkdirSync(assetsDir, { recursive: true });
+}
+
+console.log('Creating a fully functional admin interface...');
+
+// Create admin interface with ESM imports
+fs.writeFileSync(path.join(distDir, 'assets', 'app.js'), `
 import React from 'https://esm.sh/react@18.2.0';
 import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'https://esm.sh/react-router-dom@6.13.0';
+
+// Force enable API display regardless of connection status
+const ALWAYS_SHOW_DASHBOARD = true;
 
 function AdminDashboard() {
   return (
@@ -116,6 +131,29 @@ function AdminDashboard() {
       </div>
       
       <ApiStatus />
+      <EnvironmentInfo />
+    </div>
+  );
+}
+
+function EnvironmentInfo() {
+  return (
+    <div style={{ 
+      marginTop: '2rem',
+      padding: '1rem',
+      background: '#f5f5f5',
+      borderRadius: '8px',
+      border: '1px solid #ddd'
+    }}>
+      <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>
+        Environment Configuration
+      </h3>
+      <div style={{ fontSize: '0.875rem' }}>
+        <div><strong>API URL:</strong> {window.ENV.VITE_API_URL || window.ENV.VITE_PHP_API_URL || 'Not configured'}</div>
+        <div><strong>Environment:</strong> {window.ENV.VITE_ENV || 'production'}</div>
+        <div><strong>Build ID:</strong> {window.ENV.VITE_VERCEL_DEPLOYMENT_ID || 'local'}</div>
+        <div><strong>Git Commit:</strong> {window.ENV.VITE_VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown'}</div>
+      </div>
     </div>
   );
 }
@@ -164,7 +202,24 @@ function ApiStatus() {
           throw new Error('No API URL configured in environment variables');
         }
         
-        const response = await fetch(\`\${apiUrl}/status\`);
+        // Log the API URL we're checking
+        console.log('Checking API connection to:', apiUrl);
+        
+        // First try status endpoint
+        let response;
+        try {
+          response = await fetch(\`\${apiUrl}/status\`, { 
+            mode: 'cors',
+            headers: { 'Accept': 'application/json' }
+          });
+        } catch (err) {
+          console.log('Status endpoint failed, trying /api/health');
+          // If status fails, try health endpoint
+          response = await fetch(\`\${apiUrl}/api/health\`, { 
+            mode: 'cors',
+            headers: { 'Accept': 'application/json' }
+          });
+        }
         
         if (!response.ok) {
           throw new Error(\`API returned status \${response.status}\`);
@@ -208,6 +263,23 @@ function ApiStatus() {
       <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#666' }}>
         API URL: {window.ENV.VITE_API_URL || window.ENV.VITE_PHP_API_URL || 'Not configured'}
       </div>
+      {status === 'error' && (
+        <div style={{ marginTop: '1rem' }}>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ 
+              padding: '0.5rem 1rem',
+              background: '#0066cc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -316,7 +388,7 @@ function AdminLayout({ children }) {
         {children}
       </main>
       <footer style={{ background: '#f5f5f5', padding: '1rem', textAlign: 'center' }}>
-        <p>&copy; 2023 CharterHub. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} CharterHub. All rights reserved.</p>
         <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
           Env: {window.ENV.VITE_ENV} | Version: {window.ENV.VITE_VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'local'}
         </div>
@@ -363,6 +435,7 @@ function App() {
           <div>
             <h2>Settings</h2>
             <p>System settings interface will be displayed here.</p>
+            <EnvironmentInfo />
           </div>
         </AdminLayout>
       } />
@@ -383,9 +456,9 @@ root.render(
   </BrowserRouter>
 );
 `);
-    
-  // Create a minimal but complete index.html
-  fs.writeFileSync(path.join(distDir, 'index.html'), `
+  
+// Create a minimal but complete index.html
+fs.writeFileSync(path.join(distDir, 'index.html'), `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -442,6 +515,9 @@ root.render(
   <script type="module" src="/assets/app.js"></script>
   <script src="/redirect.js"></script>
   <script>
+    // Debug information
+    console.log('CharterHub Admin starting with config:', window.ENV);
+    
     // Check if app fails to load after 5 seconds
     setTimeout(() => {
       const root = document.getElementById('root');
@@ -473,156 +549,11 @@ root.render(
   </script>
 </body>
 </html>
-  `);
-  
-  // Create assets directory if it doesn't exist
-  const assetsDir = path.join(distDir, 'assets');
-  if (!fs.existsSync(assetsDir)) {
-    fs.mkdirSync(assetsDir, { recursive: true });
-  }
-  
-  // Create _redirects file for SPA routing
-  fs.writeFileSync(path.join(distDir, '_redirects'), `
+`);
+
+// Create _redirects file for SPA routing
+fs.writeFileSync(path.join(distDir, '_redirects'), `
 /*    /index.html   200
-  `);
-  
-  console.log('Successfully created admin interface');
-  
-} catch (error) {
-  console.error('Error during build process:', error.message);
-  
-  // Create a basic diagnostic page
-  console.log('Creating diagnostic page');
-  fs.writeFileSync(path.join(distDir, 'index.html'), `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CharterHub - Admin Dashboard</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-      background-color: #f5f8fa;
-      color: #333;
-      line-height: 1.6;
-      padding: 0;
-      margin: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-    .card {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      padding: 2rem;
-      margin: 2rem 0;
-    }
-    h1 {
-      color: #0066cc;
-      margin-top: 0;
-    }
-    code, pre {
-      background: #f1f5f9;
-      border-radius: 4px;
-      padding: 0.5rem;
-      overflow-x: auto;
-    }
-    .env-var {
-      margin-bottom: 0.5rem;
-    }
-    .key {
-      font-weight: bold;
-      color: #0066cc;
-    }
-    .btn {
-      padding: 0.5rem 1rem;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 1rem;
-      display: inline-block;
-      text-decoration: none;
-    }
-  </style>
-  <script src="/env-config.js"></script>
-</head>
-<body>
-  <div class="container">
-    <h1>CharterHub - Admin Dashboard</h1>
-    
-    <div class="card">
-      <h2>Environment Variables</h2>
-      <pre id="env-vars">Loading environment variables...</pre>
-    </div>
-    
-    <div class="card">
-      <h2>API Connection Tester</h2>
-      <div id="api-test-result">Click the button below to test the API connection</div>
-      <button id="test-api" class="btn">
-        Test API Connection
-      </button>
-    </div>
-    
-    <div class="card">
-      <h2>Admin Navigation</h2>
-      <p>These links should be handled by client-side routing:</p>
-      <div style="display: flex; gap: 1rem;">
-        <a href="/admin" class="btn">Dashboard</a>
-        <a href="/admin/customers" class="btn">Customers</a>
-        <a href="/admin/bookings" class="btn">Bookings</a>
-        <a href="/admin/documents" class="btn">Documents</a>
-      </div>
-    </div>
-  </div>
-  
-  <script>
-    // Redirect to admin dashboard from root
-    if (window.location.pathname === '/') {
-      window.location.href = '/admin';
-    }
-    
-    // Display environment variables
-    document.addEventListener('DOMContentLoaded', function() {
-      const envVarsEl = document.getElementById('env-vars');
-      const envVars = window.ENV || {};
-      
-      envVarsEl.textContent = JSON.stringify(envVars, null, 2);
-      
-      // API test button
-      document.getElementById('test-api').addEventListener('click', async function() {
-        const resultEl = document.getElementById('api-test-result');
-        resultEl.innerHTML = 'Testing API connection...';
-        
-        try {
-          const apiUrl = envVars.VITE_API_URL || envVars.VITE_PHP_API_URL;
-          if (!apiUrl) {
-            throw new Error('No API URL configured in environment variables');
-          }
-          
-          const response = await fetch(\`\${apiUrl}/status\`);
-          
-          if (!response.ok) {
-            throw new Error(\`API returned status \${response.status}: \${response.statusText}\`);
-          }
-          
-          const data = await response.text();
-          resultEl.innerHTML = \`<div style="color: green;">Success! API responded with: \${data}</div>\`;
-        } catch (err) {
-          console.error('API test failed:', err);
-          resultEl.innerHTML = \`<div style="color: red;">Error: \${err.message}</div>\`;
-        }
-      });
-    });
-  </script>
-</body>
-</html>
-  `);
-  
-  console.log('Admin dashboard fallback created successfully');
-} 
+`);
+
+console.log('Successfully created admin interface'); 
