@@ -3,41 +3,28 @@
   "installCommand": "cd frontend && npm install --no-fund",
   "framework": "vite",
   "outputDirectory": "frontend/dist",
+  "trailingSlash": false,
+  "cleanUrls": true,
   "headers": [
     {
-      "source": "/(.*)\\.(js|css|png|jpg|svg)$",
+      "source": "/env-config.js",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {
-      "source": "/(.*)\\.js$",
+      "source": "/redirect.js",
       "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {
-      "source": "/(.*)\\.css$",
+      "source": "/csrf-helper.js",
       "headers": [
-        { "key": "Content-Type", "value": "text/css; charset=utf-8" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.png$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/png" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.jpg$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/jpeg" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.svg$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/svg+xml" }
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {
@@ -45,8 +32,51 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" },
-        { "key": "Access-Control-Max-Age", "value": "86400" }
+        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization, Origin, Cache-Control, Pragma, Expires" },
+        { "key": "Access-Control-Max-Age", "value": "86400" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.css",
+      "headers": [
+        { "key": "Content-Type", "value": "text/css; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/images/(.*)\\.png",
+      "headers": [
+        { "key": "Content-Type", "value": "image/png" }
+      ]
+    },
+    {
+      "source": "/images/(.*)\\.jpg",
+      "headers": [
+        { "key": "Content-Type", "value": "image/jpeg" }
+      ]
+    },
+    {
+      "source": "/images/(.*)\\.svg",
+      "headers": [
+        { "key": "Content-Type", "value": "image/svg+xml" }
       ]
     }
   ],
@@ -54,14 +84,11 @@
     { "handle": "filesystem" },
     { "src": "/env-config.js", "dest": "/env-config.js" },
     { "src": "/redirect.js", "dest": "/redirect.js" },
-    { "src": "/public/(.*)", "dest": "/public/$1" },
+    { "src": "/csrf-helper.js", "dest": "/csrf-helper.js" },
+    { "src": "/filetest.html", "dest": "/filetest.html" },
+    { "src": "/service-worker.js", "dest": "/service-worker.js" },
     { "src": "/images/(.*)", "dest": "/images/$1" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/(.*)\\.js", "dest": "/$1.js" },
-    { "src": "/(.*)\\.css", "dest": "/$1.css" },
-    { "src": "/(.*)\\.png", "dest": "/$1.png" },
-    { "src": "/(.*)\\.jpg", "dest": "/$1.jpg" },
-    { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
     { "src": "/admin", "dest": "/index.html" },
     { "src": "/admin/(.*)", "dest": "/index.html" },
     { "src": "/(.*)", "dest": "/index.html" }
@@ -71,7 +98,7 @@
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
     "NODE_ENV": "production",
-    "VITE_ALLOWED_ORIGINS": "https://charter-391b9okmj-maurits-s-projects.vercel.app,https://app.yachtstory.be",
-    "VITE_FRONTEND_URL": "https://charter-391b9okmj-maurits-s-projects.vercel.app"
+    "VITE_ALLOWED_ORIGINS": "https://charter-kn1eupp28-maurits-s-projects.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-kn1eupp28-maurits-s-projects.vercel.app"
   }
 } 
