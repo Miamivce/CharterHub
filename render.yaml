@@ -3,7 +3,7 @@ services:
     name: charterhub-api
     runtime: php
     rootDirectory: backend
-    buildCommand: ./render-build.sh
+    buildCommand: ../build.sh
     startCommand: php -S 0.0.0.0:$PORT
     envVars:
       - key: DB_HOST
