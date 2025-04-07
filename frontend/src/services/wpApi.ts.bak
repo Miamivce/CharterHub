@@ -1,0 +1,738 @@
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+
+// Error Types
+export class ApiError extends Error {
+    constructor(
+        message: string,
+        public status?: number,
+        public code?: string,
+        public errors?: Record<string, string[]>
+    ) {
+        super(message);
+        this.name = 'ApiError';
+    }
+}
+
+export class ValidationError extends Error {
+    constructor(
+        message: string,
+        public errors: Record<string, string[]>
+    ) {
+        super(message);
+        this.name = 'ValidationError';
+    }
+}
+
+export class RateLimitError extends Error {
+    constructor(
+        message: string,
+        public retryAfter?: number
+    ) {
+        super(message);
+        this.name = 'RateLimitError';
+    }
+}
+
+// Validation helper functions
+const validateEmail = (email: string): string[] => {
+    const errors: string[] = [];
+    if (!email) {
+        errors.push('Email is required');
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+        errors.push('Invalid email format');
+    }
+    return errors;
+};
+
+const validatePassword = (password: string): string[] => {
+    const errors: string[] = [];
+    if (!password) {
+        errors.push('Password is required');
+    } else if (password.length < 8) {
+        errors.push('Password must be at least 8 characters');
+    }
+    return errors;
+};
+
+// Environment configuration
+const isLocal = import.meta.env.MODE === 'development';
+const API_URL = isLocal 
+    ? import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000'
+    : import.meta.env.VITE_PHP_API_URL || 'https://charterhub.yachtstory.com/api';
+
+// WordPress API base URL
+const WP_API_URL = import.meta.env.VITE_WP_API_URL || 'https://charterhub.yachtstory.com/wp-json/wp/v2';
+
+// Get the current frontend URL with port for the Origin header
+const FRONTEND_URL = window.location.origin;
+
+// Constants for token management
+const TOKEN_KEY = 'auth_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
+const TOKEN_EXPIRY_KEY = 'token_expiry';
+const REMEMBER_ME_KEY = 'remember_me';
+const CSRF_TOKEN_KEY = 'csrf_token';
+
+// Helper function to get a token from any storage
+const getTokenFromStorage = (key: string): string | null => {
+    return localStorage.getItem(key) || sessionStorage.getItem(key) || null;
+};
+
+// Helper function to store CSRF token
+const storeCSRFToken = (token: string): void => {
+    // If token is empty or not provided, don't store it
+    if (!token) {
+        console.error('Attempted to store empty CSRF token');
+        return;
+    }
+    
+    try {
+        // Clear any existing token first
+        sessionStorage.removeItem(CSRF_TOKEN_KEY);
+        // Store the new token
+        sessionStorage.setItem(CSRF_TOKEN_KEY, token);
+        console.log('CSRF token stored successfully');
+    } catch (error) {
+        console.error('Error storing CSRF token:', error);
+    }
+};
+
+// Helper function to get CSRF token
+const getCSRFToken = (): string | null => {
+    return sessionStorage.getItem(CSRF_TOKEN_KEY);
+};
+
+// Create API instance for authentication
+const api = axios.create({
+    baseURL: API_URL,
+    timeout: 90000,
+    withCredentials: true, // Enable sending cookies in cross-origin requests
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+});
+
+// Create WordPress API instance
+const wpApiInstance = axios.create({
+    baseURL: WP_API_URL,
+    timeout: 15000,
+    withCredentials: true, // Enable sending cookies in cross-origin requests
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+        // Remove Origin header - browsers set this automatically
+    },
+});
+
+// Add JWT and CSRF tokens to requests if available
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    // Use our helper to get token from either localStorage or sessionStorage
+    const token = getTokenFromStorage(TOKEN_KEY);
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Add CSRF token if available
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+    }
+    
+    return config;
+});
+
+// Helper function to handle errors consistently
+const handleApiError = (error: unknown): never => {
+    console.error('API Error:', error);
+    
+    if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        const status = axiosError.response?.status;
+        const errorData = axiosError.response?.data as any;
+        
+        // Handle validation errors
+        if (status === 422 && errorData?.errors) {
+            throw new ValidationError(
+                errorData.message || 'Validation failed',
+                errorData.errors
+            );
+        }
+        
+        // Handle other API errors
+        throw new ApiError(
+            errorData?.message || axiosError.message,
+            status,
+            errorData?.code,
+            errorData?.errors
+        );
+    }
+    
+    // Handle non-Axios errors
+    throw new ApiError(
+        error instanceof Error ? error.message : 'Unknown error occurred'
+    );
+};
+
+// Export getApi function needed by wordpressService
+export function getApi(endpoint: string): AxiosInstance {
+    const timeoutMs = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
+    const instance = axios.create({
+        withCredentials: true, // Enable sending cookies in cross-origin requests
+        baseURL: endpoint,
+        timeout: 90000, // Increased from the env value to 90 seconds
+        withCredentials: true, // Enable sending cookies in cross-origin requests
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+            // Removed 'Origin' header as browsers set it automatically
+        }
+    });
+    
+    // Remove the Origin header interceptor as browsers handle this automatically
+    
+    return instance;
+}
+
+// User data interface
+interface UserData {
+    ID: number;
+    user_login: string;
+    user_email: string;
+    display_name: string;
+    first_name: string;
+    last_name: string;
+    phone_number?: string;
+    company?: string;
+    role: string;
+    verified: boolean;
+}
+
+// Format user data from API response to frontend format
+const formatUserData = (userData: UserData) => {
+    return {
+        id: userData.ID,
+        email: userData.user_email,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        role: userData.role === 'charter_admin' ? 'admin' : 'customer',
+        verified: Boolean(userData.verified),
+        phoneNumber: userData.phone_number,
+        company: userData.company
+    };
+};
+
+interface LoginResponse {
+    success: boolean;
+    token: string;
+    refresh_token: string;
+    user: UserData;
+    expires_in: number;
+}
+
+interface PasswordResetData {
+    email: string;
+    token?: string;
+    newPassword?: string;
+}
+
+// Add retry logic for database operations that might experience timeouts
+const executeWithRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> => {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+            
+            // Type guard to ensure error is properly typed
+            const axiosError = error as AxiosError;
+            
+            // Only retry for network errors or timeout errors
+            if (
+                axiosError &&
+                axiosError.code !== 'ECONNABORTED' && // timeout
+                (!axiosError.response || axiosError.response.status < 500) // not a server error
+            ) {
+                throw error; // Don't retry client errors or validation errors
+            }
+            
+            if (attempt < maxRetries) {
+                const delay = attempt * 1000; // Exponential backoff
+                console.warn(`API request failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    throw lastError;
+};
+
+// Export the wpApi service
+const wpApi = {
+    api: getApi(import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000'),
+    
+    /**
+     * Test connection to the API
+     */
+    async testConnection() {
+        try {
+            const response = await api.get('/auth/status.php');
+            return {
+                success: true,
+                message: response.data?.message || 'Connected to PHP Auth API'
+            };
+        } catch (error) {
+            return handleApiError(error);
+        }
+    },
+    
+    /**
+     * Get initial CSRF token (if required by server)
+     */
+    async getCSRFToken() {
+        try {
+            console.log('Fetching fresh CSRF token');
+            // Clear browser cache for this request to ensure we get a fresh token
+            const response = await api.get('/auth/csrf-token.php', {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            if (response.data && response.data.csrf_token) {
+                // Store the token
+                storeCSRFToken(response.data.csrf_token);
+                console.log('New CSRF token received and stored');
+                return response.data.csrf_token;
+            }
+            console.warn('Server did not return a CSRF token');
+            return null;
+        } catch (error) {
+            console.error('Failed to get CSRF token:', error);
+            return null;
+        }
+    },
+    
+    /**
+     * Reset login attempts for current IP address
+     * Useful during development or for troubleshooting
+     */
+    async resetLoginAttempts() {
+        try {
+            console.log('Attempting to reset login attempts for current IP');
+            
+            // Clear browser cache for this request
+            const response = await api.get('/auth/reset-login-attempts.php', {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            if (response.data && response.data.success) {
+                console.log('Login attempts reset successfully:', response.data);
+                return response.data;
+            }
+            
+            console.warn('Failed to reset login attempts:', response.data);
+            return {
+                success: false,
+                message: 'Server did not confirm reset of login attempts'
+            };
+        } catch (error) {
+            console.error('Error resetting login attempts:', error);
+            return {
+                success: false,
+                message: 'Failed to reset login attempts due to an error'
+            };
+        }
+    },
+    
+    /**
+     * Get the current authenticated user
+     */
+    async getCurrentUser() {
+        try {
+            const token = getTokenFromStorage(TOKEN_KEY);
+            if (!token) {
+                return null;
+            }
+            
+            const response = await api.get('/auth/me.php');
+            return formatUserData(response.data.user);
+        } catch (error) {
+            console.error('Error getting current user:', error);
+            // Only clear tokens if it's a definite 401 Unauthorized
+            // This prevents accidental logouts during temporary network issues
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                console.log('Unauthorized response from getCurrentUser, attempting token refresh first');
+                try {
+                    // Try to refresh the token before giving up
+                    await this.refreshToken();
+                    // If refresh succeeds, try getting user again
+                    const retryResponse = await api.get('/auth/me.php');
+                    return formatUserData(retryResponse.data.user);
+                } catch (refreshError) {
+                    console.error('Token refresh failed after 401:', refreshError);
+                    // Only remove tokens if refresh also failed
+                    localStorage.removeItem(TOKEN_KEY);
+                    localStorage.removeItem(REFRESH_TOKEN_KEY);
+                    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+                    
+                    sessionStorage.removeItem(TOKEN_KEY);
+                    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+                    sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+                }
+            } else if (axios.isAxiosError(error) && !error.response) {
+                // Network error or server not reachable - don't clear tokens
+                console.log('Network error in getCurrentUser - maintaining token');
+                return null;
+            }
+            return null;
+        }
+    },
+    
+    /**
+     * Login user
+     * @returns Promise with user data and tokens
+     */
+    async login({ email, password, rememberMe = false }: { email: string, password: string, rememberMe?: boolean }): Promise<{ user: ReturnType<typeof formatUserData>, token: string, refresh_token: string }> {
+        try {
+            console.log(`Attempting login for ${email} with rememberMe=${rememberMe}`);
+            
+            // Get the current CSRF token
+            let csrfToken = getCSRFToken();
+            
+            // If no token exists, fetch a fresh one
+            if (!csrfToken) {
+                console.log('No CSRF token found, fetching a fresh one before login');
+                await this.getCSRFToken();
+                csrfToken = getCSRFToken();
+                
+                // Wait a short time to ensure token is properly saved
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Ensure proper format for the API request
+            const response = await api.post('/auth/login.php', {
+                email,
+                password,
+                remember_me: rememberMe ? "1" : "0", // API might expect string values
+                csrf_token: csrfToken // Add CSRF token if available
+            });
+            
+            // Check for valid response
+            if (!response.data || !response.data.token) {
+                console.error('Login response missing token:', response.data);
+                throw new Error('Invalid login response from server');
+            }
+            
+            console.log('Login response:', { success: true, hasToken: !!response.data.token });
+            
+            // Store new CSRF token if provided
+            if (response.data.csrf_token) {
+                storeCSRFToken(response.data.csrf_token);
+            }
+            
+            // Determine which storage to use based on rememberMe
+            const storage = rememberMe ? localStorage : sessionStorage;
+            
+            // Store auth data in the appropriate storage
+            storage.setItem(TOKEN_KEY, response.data.token);
+            storage.setItem(REFRESH_TOKEN_KEY, response.data.refresh_token);
+            storage.setItem(REMEMBER_ME_KEY, rememberMe.toString());
+            
+            // Set token expiry based on remember me setting
+            const expiryDuration = rememberMe ? (30 * 24 * 60 * 60 * 1000) : (24 * 60 * 60 * 1000);
+            const expiry = Date.now() + expiryDuration;
+            storage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
+            
+            return {
+                user: formatUserData(response.data.user),
+                token: response.data.token,
+                refresh_token: response.data.refresh_token
+            };
+        } catch (error) {
+            console.error('Login failed with error:', error);
+            
+            // Enhanced error logging for debugging
+            if (axios.isAxiosError(error) && error.response) {
+                console.error('Login API response error:', {
+                    status: error.response.status,
+                    data: error.response.data
+                });
+                
+                // Check for rate limiting errors
+                if (error.response.status === 429 || (error.response.data?.message?.includes('Too many failed login attempts'))) {
+                    const retryAfter = error.response.headers['retry-after'] 
+                        ? parseInt(error.response.headers['retry-after'], 10)
+                        : 30 * 60; // Default to 30 minutes if no header
+                        
+                    throw new RateLimitError(
+                        error.response.data?.message || 'Too many login attempts. Please try again later.',
+                        retryAfter
+                    );
+                }
+                
+                // Check for CSRF errors
+                if (error.response.data?.message?.includes('CSRF') || 
+                    error.response.data?.message?.includes('security token')) {
+                    
+                    // Auto-retry with a fresh token (once)
+                    try {
+                        console.log('CSRF token error detected. Fetching new token and retrying login...');
+                        
+                        // Get new token
+                        await this.getCSRFToken();
+                        
+                        // Retry login with new token
+                        return await this.login({ email, password, rememberMe });
+                    } catch (retryError) {
+                        console.error('Login retry after CSRF token refresh failed:', retryError);
+                        // If retry also fails, throw a more helpful error
+                        throw new ApiError('Your session has expired. Please refresh the page and try again.');
+                    }
+                }
+                
+                // Handle other error types
+                if (error.response.status === 401) {
+                    throw new ApiError('Invalid email or password');
+                } else if (error.response.data?.message) {
+                    throw new ApiError(error.response.data.message);
+                } else {
+                    throw new ApiError('Login failed. Please try again.');
+                }
+            }
+            
+            // Handle non-Axios errors
+            throw new ApiError(error instanceof Error ? error.message : 'An unexpected error occurred');
+        }
+    },
+    
+    /**
+     * Logout user
+     */
+    async logout() {
+        try {
+            // Use the helper function to check if we have a token
+            const hasToken = getTokenFromStorage(TOKEN_KEY);
+            
+            // Only make the API call if we have a token
+            if (hasToken) {
+                try {
+                    // Use the token that exists for the API call
+                    await api.post('/auth/logout.php');
+                } catch (apiError) {
+                    console.error('Logout API call failed, continuing with local logout', apiError);
+                }
+            }
+            
+            // Clear auth data from both storage types to ensure complete logout
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
+            
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+            sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+            
+            // Clear CSRF token as well
+            sessionStorage.removeItem(CSRF_TOKEN_KEY);
+            
+            // Keep remember me setting for UX consistency
+            
+            return { success: true };
+        } catch (error) {
+            // Even if API call fails, clear tokens from both storage types
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
+            
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+            sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+            sessionStorage.removeItem(CSRF_TOKEN_KEY);
+            
+            return handleApiError(error);
+        }
+    },
+    
+    /**
+     * Register a new user
+     */
+    async registerUser(data: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        phoneNumber?: string;
+        company?: string;
+    }) {
+        try {
+            // Validate inputs
+            const emailErrors = validateEmail(data.email);
+            const passwordErrors = validatePassword(data.password);
+            
+            if (emailErrors.length > 0 || passwordErrors.length > 0) {
+                const errors: Record<string, string[]> = {};
+                if (emailErrors.length > 0) errors.email = emailErrors;
+                if (passwordErrors.length > 0) errors.password = passwordErrors;
+                throw new ValidationError('Validation failed', errors);
+            }
+            
+            // Use retry logic for the registration call
+            const response = await executeWithRetry<AxiosResponse>(() => 
+                this.api.post('/auth/register.php', {
+                    email: data.email,
+                    password: data.password,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    phoneNumber: data.phoneNumber,
+                    company: data.company
+                })
+            );
+            
+            return response.data;
+        } catch (err) {
+            return handleApiError(err);
+        }
+    },
+    
+    /**
+     * Request a password reset email
+     */
+    async requestPasswordReset(data: PasswordResetData) {
+        const emailErrors = validateEmail(data.email);
+        if (emailErrors.length > 0) {
+            throw new ValidationError('Validation failed', { email: emailErrors });
+        }
+
+        try {
+            const response = await api.post('/auth/request-password-reset.php', {
+                email: data.email
+            });
+            return response.data;
+        } catch (error) {
+            return handleApiError(error);
+        }
+    },
+
+    /**
+     * Reset password with token
+     */
+    async resetPassword(data: PasswordResetData) {
+        const errors: Record<string, string[]> = {};
+        
+        if (!data.token) {
+            errors.token = ['Reset token is required'];
+        }
+        if (data.newPassword) {
+            errors.password = validatePassword(data.newPassword);
+        } else {
+            errors.password = ['New password is required'];
+        }
+
+        if (Object.keys(errors).length > 0) {
+            throw new ValidationError('Validation failed', errors);
+        }
+
+        try {
+            const response = await api.post('/auth/reset-password.php', {
+                token: data.token,
+                newPassword: data.newPassword
+            });
+            return response.data;
+        } catch (error) {
+            return handleApiError(error);
+        }
+    },
+    
+    /**
+     * Refresh the auth token
+     */
+    async refreshToken() {
+        try {
+            const isRememberMe = localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+            const storage = isRememberMe ? localStorage : sessionStorage;
+            
+            // Use helper to get the refresh token from either storage
+            const refreshToken = getTokenFromStorage(REFRESH_TOKEN_KEY);
+            
+            if (!refreshToken) {
+                throw new Error('No refresh token available');
+            }
+            
+            console.log('Attempting to refresh token');
+            
+            const response = await executeWithRetry(() => 
+                api.post('/auth/refresh.php', { refresh_token: refreshToken })
+            );
+            
+            if (!response.data || !response.data.token) {
+                throw new Error('Invalid response from refresh token endpoint');
+            }
+            
+            // Store the new token
+            storage.setItem(TOKEN_KEY, response.data.token);
+            
+            // If a new refresh token is provided, store it too
+            if (response.data.refresh_token) {
+                storage.setItem(REFRESH_TOKEN_KEY, response.data.refresh_token);
+            }
+            
+            // Update token expiry
+            const expiryDuration = isRememberMe ? (30 * 24 * 60 * 60 * 1000) : (24 * 60 * 60 * 1000);
+            const expiry = Date.now() + expiryDuration;
+            storage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
+            
+            console.log('Token refresh successful');
+            return response.data.token;
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            throw error;
+        }
+    },
+    
+    /**
+     * Update user profile
+     */
+    async updateProfile(userId: number, data: Partial<{
+        firstName: string;
+        lastName: string;
+        phoneNumber: string;
+        company: string;
+    }>) {
+        try {
+            const response = await api.post('/auth/update-profile.php', {
+                id: userId,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: data.phoneNumber,
+                company: data.company
+            });
+            
+            return formatUserData(response.data.user);
+        } catch (error) {
+            return handleApiError(error);
+        }
+    },
+    
+    /**
+     * Verify email with token
+     */
+    async verifyEmail(token: string) {
+        try {
+            const response = await api.get(`/auth/verify-email.php?token=${token}`);
+            return response.data;
+        } catch (error) {
+            return handleApiError(error);
+        }
+    }
+};
+
+export default wpApi; 

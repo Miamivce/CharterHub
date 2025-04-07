@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>JWT Token Test</h1>
+    
+    <div>
+        <h2>Test Token Storage</h2>
+        <div>
+            <p>Current token: <span id="tokenStatus">Checking...</span></p>
+            <button id="btnCheckToken">Check Token</button>
+        </div>
+    </div>
+    
+    <div>
+        <h2>Test Endpoints</h2>
+        <button id="btnTestMeEndpoint">Test /auth/me.php</button>
+        <button id="btnTestBookings">Test /api/client/bookings.php</button>
+        <button id="btnTestTokenTest">Test /test-token.php</button>
+    </div>
+    
+    <div>
+        <h2>Result</h2>
+        <div id="result">Results will appear here</div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        const resultDiv = document.getElementById('result');
+        const tokenStatusSpan = document.getElementById('tokenStatus');
+        
+        // Get token from storage
+        function getAuthToken() {
+            return localStorage.getItem('token') || sessionStorage.getItem('token');
+        }
+        
+        // Show token status
+        function updateTokenStatus() {
+            const token = getAuthToken();
+            if (!token) {
+                tokenStatusSpan.textContent = 'No token found';
+                return null;
+            }
+            
+            // Show abbreviated token
+            const tokenStart = token.substring(0, 10);
+            const tokenEnd = token.substring(token.length - 10);
+            tokenStatusSpan.textContent = `${tokenStart}...${tokenEnd} (${token.length} chars)`;
+            
+            return token;
+        }
+        
+        // Make API request with token
+        async function makeRequest(url, method = 'GET') {
+            const token = getAuthToken();
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    credentials: 'include'
+                });
+                
+                let data;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    data = await response.text();
+                }
+                
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data
+                };
+            } catch (error) {
+                return {
+                    error: error.message
+                };
+            }
+        }
+        
+        // Display result
+        function showResult(data) {
+            resultDiv.textContent = typeof data === 'string' 
+                ? data 
+                : JSON.stringify(data, null, 2);
+        }
+        
+        // Event listeners
+        document.getElementById('btnCheckToken').addEventListener('click', () => {
+            const token = updateTokenStatus();
+            
+            if (token) {
+                // Parse token
+                const parts = token.split('.');
+                if (parts.length === 3) {
+                    try {
+                        const header = JSON.parse(atob(parts[0]));
+                        const payload = JSON.parse(atob(parts[1]));
+                        
+                        // Calculate expiration
+                        const expTime = new Date(payload.exp * 1000);
+                        const now = new Date();
+                        const isExpired = now > expTime;
+                        
+                        showResult({
+                            valid: true,
+                            header,
+                            payload,
+                            expires: expTime.toLocaleString(),
+                            expired: isExpired,
+                            timeRemaining: isExpired ? 'Expired' : `${Math.floor((expTime - now) / 1000 / 60)} minutes`
+                        });
+                    } catch (e) {
+                        showResult({
+                            valid: false,
+                            error: e.message
+                        });
+                    }
+                } else {
+                    showResult({
+                        valid: false,
+                        error: 'Invalid token format'
+                    });
+                }
+            } else {
+                showResult('No token found');
+            }
+        });
+        
+        document.getElementById('btnTestMeEndpoint').addEventListener('click', async () => {
+            showResult('Testing /auth/me.php...');
+            const result = await makeRequest(`${API_BASE_URL}/auth/me.php`);
+            showResult(result);
+        });
+        
+        document.getElementById('btnTestBookings').addEventListener('click', async () => {
+            showResult('Testing /api/client/bookings.php...');
+            const result = await makeRequest(`${API_BASE_URL}/api/client/bookings.php`);
+            showResult(result);
+        });
+        
+        document.getElementById('btnTestTokenTest').addEventListener('click', async () => {
+            showResult('Testing /test-token.php...');
+            const result = await makeRequest(`${API_BASE_URL}/test-token.php`);
+            showResult(result);
+        });
+        
+        // Initialize
+        updateTokenStatus();
+    </script>
+</body>
+</html> 

@@ -1,0 +1,554 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
+import { LoadingScreen } from '@/components/shared/LoadingScreen'
+import jwtApi, { TokenStorage, validateAuthState } from '@/services/jwtApi'
+
+// Local implementation of validateTokenStorage since it's not exported from jwtApi
+const validateTokenStorage = () => {
+  const token = TokenStorage.getToken()
+  const userData = TokenStorage.getUserData()
+
+  return {
+    isValid: !!token && !!userData,
+    message: token ? 'Token valid' : 'No token found',
+    token,
+    userData,
+  }
+}
+
+type ProtectedRouteProps = {
+  children: React.ReactNode
+  allowedRoles?: string[]
+  section?: 'admin' | 'client'
+}
+
+// Define role groups for consistent evaluation
+const ADMIN_ROLES = ['admin', 'administrator']
+const CLIENT_ROLES = ['client', 'user', 'customer']
+
+/**
+ * ProtectedRoute - A robust route guard component with predictable authentication behavior
+ */
+export const ProtectedRoute = ({
+  children,
+  allowedRoles = [],
+  section = 'client',
+}: ProtectedRouteProps) => {
+  const { isAuthenticated, loading, user } = useJWTAuth()
+  const [routeState, setRouteState] = useState<{
+    accessChecked: boolean
+    accessAllowed: boolean
+    checkCount: number
+    isVerifying: boolean
+    verificationAttempts: number
+    userRole?: string
+    hasRequiredRole: boolean
+    error?: string
+  }>({
+    accessChecked: false,
+    accessAllowed: false,
+    checkCount: 0,
+    isVerifying: true,
+    verificationAttempts: 0,
+    hasRequiredRole: false,
+  })
+  const location = useLocation()
+
+  // Create stable references to state values to avoid infinite loops
+  const pathRef = useRef(location.pathname)
+  const userRef = useRef(user)
+  const processingRef = useRef(false)
+  const routeStateRef = useRef(routeState)
+
+  // Update the ref when state changes
+  useEffect(() => {
+    routeStateRef.current = routeState
+    // No dependencies since we just want to update the ref
+  }, [routeState])
+
+  // Debug logging - keep this separate from the access checking logic
+  useEffect(() => {
+    console.log(`[ProtectedRoute ${section}] Route state updated:`, {
+      isAuthenticated,
+      userRole: user?.role,
+      path: location.pathname,
+      allowedRoles,
+      accessChecked: routeState.accessChecked,
+      accessAllowed: routeState.accessAllowed,
+      checkCount: routeState.checkCount,
+      isVerifying: routeState.isVerifying,
+      verificationAttempts: routeState.verificationAttempts,
+      loading,
+    })
+  }, [
+    isAuthenticated,
+    user,
+    location.pathname,
+    allowedRoles,
+    routeState.accessChecked,
+    routeState.accessAllowed,
+    routeState.checkCount,
+    routeState.isVerifying,
+    routeState.verificationAttempts,
+    loading,
+    section,
+  ])
+
+  // Add a token verification function that doesn't depend on the route state
+  const verifyToken = useCallback(async () => {
+    try {
+      // Check if we have a token in storage
+      const token = TokenStorage.getToken()
+      if (!token) {
+        console.log(`[ProtectedRoute ${section}] No token found in storage`)
+        return false
+      }
+
+      // Validate token storage state
+      const validation = validateTokenStorage()
+      if (!validation.isValid) {
+        console.log(`[ProtectedRoute ${section}] Token validation failed:`, validation)
+        return false
+      }
+
+      console.log(`[ProtectedRoute ${section}] Token validation successful, checking with API`)
+
+      // Add a timeout to prevent infinite waiting
+      const timeoutPromise = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.log(`[ProtectedRoute ${section}] Verification timed out`)
+          resolve(false)
+        }, 10000) // 10 second timeout
+      })
+
+      // Race the API call against the timeout
+      return Promise.race([jwtApi.verifyAuthentication(), timeoutPromise])
+    } catch (error) {
+      console.error(`[ProtectedRoute ${section}] Token verification error:`, error)
+      return false
+    }
+  }, [section])
+
+  // Centralized access check function with deterministic behavior
+  // This function doesn't use routeState directly, using the ref instead
+  const performAccessCheck = useCallback(async () => {
+    // Skip if already processing an access check to prevent cascading updates
+    if (processingRef.current) return
+
+    // Mark processing started
+    processingRef.current = true
+
+    // Use currentRouteState from ref to avoid dependency on routeState
+    const currentRouteState = routeStateRef.current
+
+    // Start verification
+    setRouteState((prev) => ({ ...prev, isVerifying: true }))
+
+    console.log(
+      `[ProtectedRoute ${section}] Performing access check #${currentRouteState.checkCount + 1}`,
+      {
+        path: location.pathname,
+        isAuthenticated,
+        user: user ? { id: user.id, role: user.role } : null,
+        section,
+      }
+    )
+
+    // If auth is still initializing, don't make access decision yet
+    if (loading.login) {
+      console.log(`[ProtectedRoute ${section}] Auth still loading, deferring access check`)
+      processingRef.current = false
+      return
+    }
+
+    // Check the most recent login data first
+    const userId = sessionStorage.getItem('auth_user_id')
+    const userRole = sessionStorage.getItem('auth_user_role')
+    const redirectTimestamp = sessionStorage.getItem('auth_redirect_timestamp')
+    const isRecentLogin = redirectTimestamp && Date.now() - parseInt(redirectTimestamp, 10) < 10000
+
+    // For fresh logins, we can trust the session data
+    if (isRecentLogin && userId && userRole) {
+      console.log(`[ProtectedRoute ${section}] Found recent login data in session:`, {
+        userId,
+        userRole,
+      })
+
+      // Check for an authState that matches the session data
+      const authState = validateAuthState()
+      if (authState.isAuthenticated && authState.user) {
+        console.log(`[ProtectedRoute ${section}] Auth validation confirms data is valid`)
+
+        // Dispatch global event to update app state
+        window.dispatchEvent(
+          new CustomEvent('jwt:authSuccess', {
+            detail: { user: authState.user },
+          })
+        )
+
+        // Immediately grant access for the correct role/section
+        const isInCorrectSection =
+          (section === 'admin' && userRole === 'admin') ||
+          (section === 'client' && (userRole === 'client' || userRole === 'customer'))
+
+        const hasRequiredRole = allowedRoles.length === 0 || allowedRoles.includes(userRole)
+
+        if (isInCorrectSection && hasRequiredRole) {
+          console.log(`[ProtectedRoute ${section}] Fast path access granted for ${section} route`)
+
+          setRouteState({
+            accessChecked: true,
+            accessAllowed: true,
+            checkCount: currentRouteState.checkCount + 1,
+            isVerifying: false,
+            verificationAttempts: 0,
+            hasRequiredRole: true,
+            userRole,
+          })
+
+          processingRef.current = false
+          return
+        }
+      }
+    }
+
+    // Continue with regular flow...
+    // If local state says we're not authenticated, verify with token storage as a double-check
+    if (!isAuthenticated || !user) {
+      console.log(
+        `[ProtectedRoute ${section}] Local auth state is not authenticated, verifying token`
+      )
+
+      // Use our new validation helper for a comprehensive check
+      const authState = validateAuthState()
+
+      // If our validation helper confirms authentication, but the context doesn't reflect it
+      if (authState.isAuthenticated && authState.user) {
+        console.log(
+          `[ProtectedRoute ${section}] Auth state validation found valid authentication that's not reflected in context`,
+          {
+            tokenExists: authState.tokenExists,
+            tokenExpired: authState.tokenExpired,
+            userId: authState.user.id,
+            role: authState.user.role,
+          }
+        )
+
+        // Trigger an auth success event to force state update
+        window.dispatchEvent(
+          new CustomEvent('jwt:authSuccess', {
+            detail: { user: authState.user },
+          })
+        )
+
+        // End this check cycle and wait for state update
+        setRouteState((prev) => ({
+          ...prev,
+          isVerifying: false,
+          checkCount: prev.checkCount + 1,
+        }))
+        processingRef.current = false
+        return
+      }
+
+      // Limit verification attempts to prevent infinite loops
+      if (currentRouteState.verificationAttempts >= 3) {
+        console.log(
+          `[ProtectedRoute ${section}] Maximum verification attempts reached, denying access`
+        )
+        setRouteState((prev) => ({
+          accessChecked: true,
+          accessAllowed: false,
+          checkCount: prev.checkCount + 1,
+          isVerifying: false,
+          verificationAttempts: prev.verificationAttempts,
+          hasRequiredRole: false,
+          userRole: user?.role,
+        }))
+        processingRef.current = false
+        return
+      }
+
+      // Increment verification attempts
+      setRouteState((prev) => ({
+        ...prev,
+        verificationAttempts: prev.verificationAttempts + 1,
+      }))
+
+      const tokenIsValid = await verifyToken()
+
+      if (!tokenIsValid) {
+        console.log(`[ProtectedRoute ${section}] Token verification failed, denying access`)
+        setRouteState((prev) => ({
+          accessChecked: true,
+          accessAllowed: false,
+          checkCount: prev.checkCount + 1,
+          isVerifying: false,
+          verificationAttempts: prev.verificationAttempts,
+          hasRequiredRole: false,
+          userRole: user?.role,
+        }))
+        processingRef.current = false
+        return
+      } else {
+        console.log(
+          `[ProtectedRoute ${section}] Token verification succeeded, proceeding with access check`
+        )
+
+        // If token is valid, manually refresh the user data to try to fix state issues
+        try {
+          console.log(`[ProtectedRoute ${section}] Manually refreshing user data`)
+          const userData = await jwtApi.getCurrentUser()
+          if (userData) {
+            console.log(`[ProtectedRoute ${section}] Successfully refreshed user data:`, {
+              id: userData.id,
+              role: userData.role,
+            })
+
+            // Manually update route state with the refreshed user data
+            setRouteState((prev) => ({
+              ...prev,
+              isVerifying: false,
+              hasRequiredRole: allowedRoles.length === 0 || allowedRoles.includes(userData.role),
+              userRole: userData.role,
+            }))
+          }
+        } catch (error) {
+          console.error(`[ProtectedRoute ${section}] Error refreshing user data:`, error)
+        }
+
+        // If token is valid but state doesn't reflect it, wait for state to update
+        setRouteState((prev) => ({
+          ...prev,
+          isVerifying: false,
+          hasRequiredRole: prev.hasRequiredRole,
+        }))
+        processingRef.current = false
+        return
+      }
+    }
+
+    // Store current user reference
+    userRef.current = user
+
+    // Determine role compatibility
+    let hasRequiredRole = true
+    if (allowedRoles.length > 0) {
+      hasRequiredRole = allowedRoles.some((role) => {
+        // Handle role group matching
+        if (role === 'admin' && ADMIN_ROLES.includes(user.role)) return true
+        if (role === 'client' && CLIENT_ROLES.includes(user.role)) return true
+        return role === user.role
+      })
+    } else {
+      // If no specific roles required, default to section-based access
+      hasRequiredRole =
+        section === 'admin' ? ADMIN_ROLES.includes(user.role) : CLIENT_ROLES.includes(user.role)
+    }
+
+    // Check section compatibility
+    const isInCorrectSection =
+      (section === 'admin' && ADMIN_ROLES.includes(user.role)) ||
+      (section === 'client' && CLIENT_ROLES.includes(user.role))
+
+    // Log additional details for debugging
+    console.log(`[ProtectedRoute ${section}] Access check details:`, {
+      userRole: user.role,
+      allowedRoles,
+      hasRequiredRole,
+      isInCorrectSection,
+      path: location.pathname,
+      section,
+    })
+
+    // User needs both the required role AND must be in the correct section
+    const hasAccess = hasRequiredRole && isInCorrectSection
+
+    // Update component state with access decision
+    setRouteState((prev) => ({
+      accessChecked: true,
+      accessAllowed: hasAccess,
+      checkCount: prev.checkCount + 1,
+      isVerifying: false,
+      verificationAttempts: 0, // Reset verification attempts on successful check
+      hasRequiredRole, // Add the missing hasRequiredRole property
+      userRole: user?.role,
+    }))
+
+    // Mark processing completed
+    processingRef.current = false
+  }, [isAuthenticated, user, loading.login, location.pathname, section, allowedRoles, verifyToken]) // Removed routeState dependencies
+
+  // Perform access check when relevant dependencies change
+  useEffect(() => {
+    // Check if this might be a fresh login redirect
+    const redirectTimestamp = sessionStorage.getItem('auth_redirect_timestamp')
+    const isRecentRedirect =
+      redirectTimestamp && Date.now() - parseInt(redirectTimestamp, 10) < 5000 // Within 5 seconds
+
+    if (isRecentRedirect) {
+      console.log(`[ProtectedRoute ${section}] Detected recent authentication redirect`, {
+        redirectTimestamp,
+        elapsedMs: Date.now() - parseInt(redirectTimestamp, 10),
+      })
+    }
+
+    // Only trigger a new check when a meaningful change occurs
+    const shouldRecheck =
+      !routeStateRef.current.accessChecked || // Initial check
+      pathRef.current !== location.pathname || // Path changed
+      userRef.current !== user || // User changed
+      loading.login === false // Auth loading just completed
+
+    if (shouldRecheck) {
+      pathRef.current = location.pathname
+
+      // If we detect this is a fresh login redirect, AND we have valid tokens in storage
+      // immediately update local state to prevent double loading screens
+      if (isRecentRedirect) {
+        const authState = validateAuthState()
+
+        if (authState.isAuthenticated && authState.user) {
+          console.log(
+            `[ProtectedRoute ${section}] Recent login detected with valid auth state, using storage data`,
+            {
+              userId: authState.user.id,
+              role: authState.user.role,
+            }
+          )
+
+          setRouteState((prev) => ({
+            ...prev,
+            userRole: authState.user?.role,
+            hasRequiredRole:
+              allowedRoles.length === 0 ||
+              (!!authState.user?.role && allowedRoles.includes(authState.user.role)),
+            accessChecked: true,
+            accessAllowed: true,
+            isVerifying: false,
+          }))
+
+          // Force the auth success event again to ensure context is updated
+          window.dispatchEvent(
+            new CustomEvent('jwt:authSuccess', {
+              detail: { user: authState.user },
+            })
+          )
+
+          // Clear the redirect timestamp to avoid reprocessing
+          sessionStorage.removeItem('auth_redirect_timestamp')
+        }
+      }
+
+      // Still do the normal check
+      if (isAuthenticated && user && user.role) {
+        console.log(
+          `[ProtectedRoute ${section}] User is authenticated with role ${user.role}, updating state immediately`
+        )
+        setRouteState((prev) => ({
+          ...prev,
+          userRole: user.role,
+          hasRequiredRole: allowedRoles.length === 0 || allowedRoles.includes(user.role),
+          accessChecked: true,
+          accessAllowed: true,
+          isVerifying: false,
+        }))
+      }
+
+      performAccessCheck()
+    }
+  }, [isAuthenticated, user, loading.login, location.pathname, performAccessCheck])
+
+  // Show loading screen during initial access check or auth loading
+  if (routeState.isVerifying || !routeState.accessChecked || loading.login) {
+    // Check if this is direct URL access after login
+    const authState = validateAuthState()
+
+    // If we already have valid auth data in storage, we can skip the loading screen
+    if (authState.isAuthenticated && authState.user) {
+      // For dashboard routes, check if the user role matches the section
+      const isCorrectSection =
+        section === 'admin'
+          ? ADMIN_ROLES.includes(authState.user.role)
+          : CLIENT_ROLES.includes(authState.user.role)
+
+      const isDashboardRoute = location.pathname.includes('/dashboard')
+
+      // If this is a dashboard route and user role matches section, render immediately
+      if (isDashboardRoute && isCorrectSection) {
+        console.log(
+          `[ProtectedRoute ${section}] Bypassing loading screen - valid auth found for ${section} dashboard`
+        )
+        return <>{children}</>
+      }
+    }
+
+    return <LoadingScreen />
+  }
+
+  // Handle non-authenticated users - redirect to correct login page
+  if (!isAuthenticated) {
+    console.log(
+      `[ProtectedRoute ${section}] User not authenticated, redirecting to:`,
+      section === 'admin' ? '/admin/login' : '/login'
+    )
+
+    // Redirect to the appropriate login page based on section
+    const loginPath = section === 'admin' ? '/admin/login' : '/login'
+    return <Navigate to={loginPath} state={{ from: location }} replace />
+  }
+
+  // Handle authenticated users who don't have access to this route
+  if (!routeState.accessAllowed && user) {
+    // Determine appropriate redirect based on user role
+    const isAdminUser = ADMIN_ROLES.includes(user.role)
+    const redirectPath = isAdminUser ? '/admin/dashboard' : '/client/dashboard'
+
+    // Only redirect if we're not already on the target dashboard
+    if (location.pathname === redirectPath) {
+      console.log(
+        `[ProtectedRoute ${section}] Already on dashboard ${redirectPath}, allowing access to prevent loop`
+      )
+      return <>{children}</>
+    }
+
+    // Also allow access to current path if we're in the right section
+    // to prevent redirect loops during login transitions
+    const isInCorrectSection =
+      (section === 'admin' && ADMIN_ROLES.includes(user.role)) ||
+      (section === 'client' && CLIENT_ROLES.includes(user.role))
+
+    if (
+      isInCorrectSection &&
+      ((location.pathname.startsWith('/admin/') && ADMIN_ROLES.includes(user.role)) ||
+        (location.pathname.startsWith('/client/') && CLIENT_ROLES.includes(user.role)))
+    ) {
+      console.log(`[ProtectedRoute ${section}] User is in correct section, allowing access`)
+      return <>{children}</>
+    }
+
+    console.log(
+      `[ProtectedRoute ${section}] User (role: ${user.role}) does not have required access, redirecting to:`,
+      redirectPath
+    )
+
+    // Special case for admin settings
+    if (location.pathname === '/admin/settings' && ADMIN_ROLES.includes(user.role)) {
+      console.log(
+        `[ProtectedRoute ${section}] SPECIAL CASE: Admin settings access override for debugging`
+      )
+      return <>{children}</>
+    }
+
+    return <Navigate to={redirectPath} replace />
+  }
+
+  // User has access, render the protected content
+  console.log(
+    `[ProtectedRoute ${section}] Access granted for ${section} route: ${location.pathname}`
+  )
+  return <>{children}</>
+}
+
+export default ProtectedRoute

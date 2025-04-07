@@ -1,0 +1,66 @@
+/* Font imports */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-background text-text-primary;
+  }
+
+  h1 {
+    @apply text-h1 font-heading font-bold;
+  }
+
+  h2 {
+    @apply text-h2 font-heading font-semibold;
+  }
+
+  h3 {
+    @apply text-h3 font-heading font-semibold;
+  }
+
+  h4 {
+    @apply text-h4 font-heading font-medium;
+  }
+
+  p {
+    @apply text-body;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded transition-colors duration-normal;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary/90 active:bg-primary/80 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply btn border-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 disabled:opacity-50;
+  }
+
+  .btn-text {
+    @apply btn bg-transparent text-primary hover:bg-primary/10 active:bg-primary/20 disabled:opacity-50;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-sm p-6;
+  }
+
+  .input {
+    @apply h-10 rounded border-gray-300 focus:border-primary focus:ring-primary;
+  }
+
+  .input-error {
+    @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+  }
+
+  .input-success {
+    @apply border-accent focus:border-accent focus:ring-accent;
+  }
+}

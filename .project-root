@@ -1,0 +1,4 @@
+CharterHub Project Root
+This file marks the root directory of the CharterHub project.
+It is used by scripts to determine the correct paths for starting servers and other operations.
+DO NOT DELETE THIS FILE. 

@@ -1,0 +1,232 @@
+30:CREATE TABLE `wp_actionscheduler_actions` (
+82:CREATE TABLE `wp_actionscheduler_claims` (
+93:CREATE TABLE `wp_actionscheduler_groups` (
+112:CREATE TABLE `wp_actionscheduler_logs` (
+197:CREATE TABLE `wp_charterhub_auth_logs` (
+289:CREATE TABLE `wp_charterhub_bookings` (
+307:CREATE TABLE `wp_charterhub_booking_documents` (
+321:CREATE TABLE `wp_charterhub_booking_guests` (
+335:CREATE TABLE `wp_charterhub_charterhub_auth_logs` (
+362:CREATE TABLE `wp_charterhub_documents` (
+380:CREATE TABLE `wp_charterhub_document_relations` (
+394:CREATE TABLE `wp_charterhub_invitations` (
+418:CREATE TABLE `wp_charterhub_jwt_tokens` (
+24467:CREATE TABLE `wp_charterhub_meta` (
+24490:CREATE TABLE `wp_charterhub_users` (
+24546:CREATE TABLE `wp_commentmeta` (
+24559:CREATE TABLE `wp_comments` (
+24590:CREATE TABLE `wp_documents` (
+24626:CREATE TABLE `wp_document_metadata` (
+24655:CREATE TABLE `wp_document_relationships` (
+24669:CREATE TABLE `wp_links` (
+24691:CREATE TABLE `wp_options` (
+24937:CREATE TABLE `wp_postmeta` (
+79249:CREATE TABLE `wp_posts` (
+79735:CREATE TABLE `wp_termmeta` (
+79790:CREATE TABLE `wp_terms` (
+79871:CREATE TABLE `wp_term_relationships` (
+80479:CREATE TABLE `wp_term_taxonomy` (
+80561:CREATE TABLE `wp_tm_taskmeta` (
+80971:CREATE TABLE `wp_tm_tasks` (
+81386:CREATE TABLE `wp_usermeta` (
+81500:CREATE TABLE `wp_users` (
+81539:CREATE TABLE `wp_users_backup_20250311_154215` (
+81596:CREATE TABLE `wp_wfauditevents` (
+81612:CREATE TABLE `wp_wfblockediplog` (
+81626:CREATE TABLE `wp_wfblocks7` (
+81651:CREATE TABLE `wp_wfconfig` (
+81951:CREATE TABLE `wp_wfcrawlers` (
+81965:CREATE TABLE `wp_wffilechanges` (
+81977:CREATE TABLE `wp_wfFileMods` (
+90552:CREATE TABLE `wp_wfhits` (
+90607:CREATE TABLE `wp_wfhoover` (
+90621:CREATE TABLE `wp_wfissues` (
+90651:CREATE TABLE `wp_wfknownfilelist` (
+99188:CREATE TABLE `wp_wflivetraffichuman` (
+99200:CREATE TABLE `wp_wflocs` (
+99225:CREATE TABLE `wp_wflogins` (
+99273:CREATE TABLE `wp_wfls_2fa_secrets` (
+99289:CREATE TABLE `wp_wfls_role_counts` (
+99301:CREATE TABLE `wp_wfls_settings` (
+99349:CREATE TABLE `wp_wfnotifications` (
+99373:CREATE TABLE `wp_wfpendingissues` (
+99393:CREATE TABLE `wp_wfreversecache` (
+99412:CREATE TABLE `wp_wfsecurityevents` (
+99427:CREATE TABLE `wp_wfsnipcache` (
+99442:CREATE TABLE `wp_wfstatus` (
+99727:CREATE TABLE `wp_wftrafficrates` (
+99740:CREATE TABLE `wp_wfwaffailures` (
+99753:CREATE TABLE `wp_wpfm_backup` (
+99765:CREATE TABLE `wp_wpmailsmtp_debug_events` (
+99792:CREATE TABLE `wp_wpmailsmtp_tasks_meta` (
+99812:CREATE TABLE `wp_wpo_404_detector` (
+99828:  ADD PRIMARY KEY (`action_id`),
+99829:  ADD KEY `hook_status_scheduled_date_gmt` (`hook`(163),`status`,`scheduled_date_gmt`),
+99830:  ADD KEY `status_scheduled_date_gmt` (`status`,`scheduled_date_gmt`),
+99831:  ADD KEY `scheduled_date_gmt` (`scheduled_date_gmt`),
+99832:  ADD KEY `args` (`args`),
+99833:  ADD KEY `group_id` (`group_id`),
+99834:  ADD KEY `last_attempt_gmt` (`last_attempt_gmt`),
+99835:  ADD KEY `claim_id_status_scheduled_date_gmt` (`claim_id`,`status`,`scheduled_date_gmt`);
+99841:  ADD PRIMARY KEY (`claim_id`),
+99842:  ADD KEY `date_created_gmt` (`date_created_gmt`);
+99848:  ADD PRIMARY KEY (`group_id`),
+99849:  ADD KEY `slug` (`slug`(191));
+99855:  ADD PRIMARY KEY (`log_id`),
+99856:  ADD KEY `action_id` (`action_id`),
+99857:  ADD KEY `log_date_gmt` (`log_date_gmt`);
+99863:  ADD PRIMARY KEY (`id`),
+99864:  ADD KEY `user_id` (`user_id`),
+99865:  ADD KEY `action` (`action`),
+99866:  ADD KEY `status` (`status`),
+99867:  ADD KEY `created_at` (`created_at`);
+99873:  ADD PRIMARY KEY (`id`),
+99874:  ADD KEY `customer_id` (`customer_id`),
+99875:  ADD KEY `yacht_id` (`yacht_id`);
+99881:  ADD PRIMARY KEY (`id`),
+99882:  ADD KEY `booking_id` (`booking_id`);
+99888:  ADD PRIMARY KEY (`id`),
+99889:  ADD KEY `booking_id` (`booking_id`);
+99895:  ADD PRIMARY KEY (`id`),
+99896:  ADD KEY `user_id` (`user_id`),
+99897:  ADD KEY `action` (`action`),
+99898:  ADD KEY `status` (`status`),
+99899:  ADD KEY `created_at` (`created_at`);
+99905:  ADD PRIMARY KEY (`id`),
+99906:  ADD KEY `user_id` (`user_id`),
+99907:  ADD KEY `visibility` (`visibility`);
+99913:  ADD PRIMARY KEY (`id`),
+99914:  ADD KEY `document_id` (`document_id`),
+99915:  ADD KEY `related_id` (`related_id`),
+99916:  ADD KEY `relation_type` (`relation_type`);
+99922:  ADD PRIMARY KEY (`id`),
+99923:  ADD UNIQUE KEY `token` (`token`),
+99924:  ADD KEY `email` (`email`),
+99925:  ADD KEY `booking_id` (`booking_id`),
+99926:  ADD KEY `created_by` (`created_by`);
+99932:  ADD PRIMARY KEY (`id`),
+99933:  ADD KEY `user_id` (`user_id`),
+99934:  ADD KEY `token_hash` (`token_hash`),
+99935:  ADD KEY `refresh_token_hash` (`refresh_token_hash`);
+99941:  ADD PRIMARY KEY (`meta_id`),
+99942:  ADD UNIQUE KEY `uk_meta_key` (`meta_key`);
+99948:  ADD PRIMARY KEY (`id`);
+99954:  ADD PRIMARY KEY (`meta_id`),
+99955:  ADD KEY `comment_id` (`comment_id`),
+99956:  ADD KEY `meta_key` (`meta_key`(191));
+99962:  ADD PRIMARY KEY (`comment_ID`),
+99963:  ADD KEY `comment_post_ID` (`comment_post_ID`),
+99964:  ADD KEY `comment_approved_date_gmt` (`comment_approved`,`comment_date_gmt`),
+99965:  ADD KEY `comment_date_gmt` (`comment_date_gmt`),
+99966:  ADD KEY `comment_parent` (`comment_parent`),
+99967:  ADD KEY `comment_author_email` (`comment_author_email`(10));
+99973:  ADD PRIMARY KEY (`id`),
+99974:  ADD KEY `category_index` (`category`),
+99975:  ADD KEY `uploaded_by_index` (`uploaded_by`);
+99981:  ADD PRIMARY KEY (`id`),
+99982:  ADD UNIQUE KEY `unique_metadata` (`document_id`,`meta_key`),
+99983:  ADD KEY `meta_key_index` (`meta_key`);
+99989:  ADD PRIMARY KEY (`id`),
+99990:  ADD UNIQUE KEY `unique_relationship` (`document_id`,`related_type`,`related_id`),
+99991:  ADD KEY `related_index` (`related_type`,`related_id`);
+99997:  ADD PRIMARY KEY (`link_id`),
+99998:  ADD KEY `link_visible` (`link_visible`);
+100004:  ADD PRIMARY KEY (`option_id`),
+100005:  ADD UNIQUE KEY `option_name` (`option_name`),
+100006:  ADD KEY `autoload` (`autoload`);
+100012:  ADD PRIMARY KEY (`meta_id`),
+100013:  ADD KEY `post_id` (`post_id`),
+100014:  ADD KEY `meta_key` (`meta_key`(191));
+100020:  ADD PRIMARY KEY (`ID`),
+100021:  ADD KEY `post_name` (`post_name`(191)),
+100022:  ADD KEY `type_status_date` (`post_type`,`post_status`,`post_date`,`ID`),
+100023:  ADD KEY `post_parent` (`post_parent`),
+100024:  ADD KEY `post_author` (`post_author`);
+100030:  ADD PRIMARY KEY (`meta_id`),
+100031:  ADD KEY `term_id` (`term_id`),
+100032:  ADD KEY `meta_key` (`meta_key`(191));
+100038:  ADD PRIMARY KEY (`term_id`),
+100039:  ADD KEY `slug` (`slug`(191)),
+100040:  ADD KEY `name` (`name`(191));
+100046:  ADD PRIMARY KEY (`object_id`,`term_taxonomy_id`),
+100047:  ADD KEY `term_taxonomy_id` (`term_taxonomy_id`);
+100053:  ADD PRIMARY KEY (`term_taxonomy_id`),
+100054:  ADD UNIQUE KEY `term_id_taxonomy` (`term_id`,`taxonomy`),
+100055:  ADD KEY `taxonomy` (`taxonomy`);
+100061:  ADD PRIMARY KEY (`meta_id`),
+100062:  ADD KEY `meta_key` (`meta_key`(191)),
+100063:  ADD KEY `task_id` (`task_id`);
+100069:  ADD PRIMARY KEY (`id`),
+100070:  ADD KEY `user_id` (`user_id`);
+100076:  ADD PRIMARY KEY (`umeta_id`),
+100077:  ADD KEY `user_id` (`user_id`),
+100078:  ADD KEY `meta_key` (`meta_key`(191));
+100084:  ADD PRIMARY KEY (`ID`),
+100085:  ADD KEY `user_login_key` (`user_login`),
+100086:  ADD KEY `user_nicename` (`user_nicename`),
+100087:  ADD KEY `user_email` (`user_email`);
+100093:  ADD PRIMARY KEY (`ID`),
+100094:  ADD KEY `user_login_key` (`user_login`),
+100095:  ADD KEY `user_nicename` (`user_nicename`),
+100096:  ADD KEY `user_email` (`user_email`);
+100102:  ADD PRIMARY KEY (`id`);
+100108:  ADD PRIMARY KEY (`IP`,`unixday`,`blockType`);
+100114:  ADD PRIMARY KEY (`id`),
+100115:  ADD KEY `type` (`type`),
+100116:  ADD KEY `IP` (`IP`),
+100117:  ADD KEY `expiration` (`expiration`);
+100123:  ADD PRIMARY KEY (`name`);
+100129:  ADD PRIMARY KEY (`IP`,`patternSig`);
+100135:  ADD PRIMARY KEY (`filenameHash`);
+100141:  ADD PRIMARY KEY (`filenameMD5`);
+100147:  ADD PRIMARY KEY (`id`),
+100148:  ADD KEY `k1` (`ctime`),
+100149:  ADD KEY `k2` (`IP`,`ctime`),
+100150:  ADD KEY `attackLogTime` (`attackLogTime`);
+100156:  ADD PRIMARY KEY (`id`),
+100157:  ADD KEY `k2` (`hostKey`);
+100163:  ADD PRIMARY KEY (`id`),
+100164:  ADD KEY `lastUpdated` (`lastUpdated`),
+100165:  ADD KEY `status` (`status`),
+100166:  ADD KEY `ignoreP` (`ignoreP`),
+100167:  ADD KEY `ignoreC` (`ignoreC`);
+100173:  ADD PRIMARY KEY (`id`);
+100179:  ADD PRIMARY KEY (`IP`,`identifier`),
+100180:  ADD KEY `expiration` (`expiration`);
+100186:  ADD PRIMARY KEY (`IP`);
+100192:  ADD PRIMARY KEY (`id`),
+100193:  ADD KEY `k1` (`IP`,`fail`),
+100194:  ADD KEY `hitID` (`hitID`);
+100200:  ADD PRIMARY KEY (`id`),
+100201:  ADD KEY `user_id` (`user_id`);
+100207:  ADD PRIMARY KEY (`serialized_roles`,`two_factor_inactive`);
+100213:  ADD PRIMARY KEY (`name`);
+100219:  ADD PRIMARY KEY (`id`);
+100225:  ADD PRIMARY KEY (`id`),
+100226:  ADD KEY `lastUpdated` (`lastUpdated`),
+100227:  ADD KEY `status` (`status`),
+100228:  ADD KEY `ignoreP` (`ignoreP`),
+100229:  ADD KEY `ignoreC` (`ignoreC`);
+100235:  ADD PRIMARY KEY (`IP`);
+100241:  ADD PRIMARY KEY (`id`);
+100247:  ADD PRIMARY KEY (`id`),
+100248:  ADD KEY `expiration` (`expiration`),
+100249:  ADD KEY `IP` (`IP`),
+100250:  ADD KEY `type` (`type`);
+100256:  ADD PRIMARY KEY (`id`),
+100257:  ADD KEY `k1` (`ctime`),
+100258:  ADD KEY `k2` (`type`);
+100264:  ADD PRIMARY KEY (`eMin`,`IP`,`hitType`);
+100270:  ADD PRIMARY KEY (`id`);
+100276:  ADD PRIMARY KEY (`id`);
+100282:  ADD PRIMARY KEY (`id`);
+100288:  ADD PRIMARY KEY (`id`);
+100294:  ADD PRIMARY KEY (`ID`),
+100295:  ADD UNIQUE KEY `url` (`url`(75),`request_timestamp`,`referrer`(75)),
+100296:  ADD KEY `url_timestamp_referrer` (`url`(75),`request_timestamp`,`referrer`(75)),
+100297:  ADD KEY `timestamp_count` (`request_timestamp`,`request_count`);
+100605:  ADD CONSTRAINT `wp_charterhub_bookings_customer_fk` FOREIGN KEY (`customer_id`) REFERENCES `wp_users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+100611:  ADD CONSTRAINT `wp_charterhub_booking_documents_fk` FOREIGN KEY (`booking_id`) REFERENCES `wp_charterhub_bookings` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+100617:  ADD CONSTRAINT `wp_charterhub_booking_guests_fk` FOREIGN KEY (`booking_id`) REFERENCES `wp_charterhub_bookings` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+100623:  ADD CONSTRAINT `fk_document_metadata` FOREIGN KEY (`document_id`) REFERENCES `wp_documents` (`id`) ON DELETE CASCADE;
+100629:  ADD CONSTRAINT `fk_document_id` FOREIGN KEY (`document_id`) REFERENCES `wp_documents` (`id`) ON DELETE CASCADE;

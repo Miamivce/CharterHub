@@ -1,0 +1,1078 @@
+{
+    "wp_auth_logs": {
+        "create_statement": "CREATE TABLE `wp_auth_logs` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `user_id` bigint NOT NULL,\n  `action` varchar(50) NOT NULL,\n  `ip_address` varchar(45) DEFAULT NULL,\n  `user_agent` text,\n  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `user_id` (`user_id`),\n  CONSTRAINT `wp_auth_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `wp_users` (`ID`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "action",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "ip_address",
+                "Type": "varchar(45)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "user_agent",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_booking_documents": {
+        "create_statement": "CREATE TABLE `wp_booking_documents` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `booking_id` int NOT NULL,\n  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `url` varchar(2048) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `type` enum('proposal','brochure','contract','payment_overview','preference_sheet','sample_menu','crew_profiles','itinerary','passport_details','captains_details','other') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `document_type` enum('file','link','form') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'file',\n  `visibility` enum('main_charterer','all') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'main_charterer',\n  `uploaded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,\n  `metadata` json DEFAULT NULL,\n  PRIMARY KEY (`id`),\n  KEY `booking_id` (`booking_id`),\n  CONSTRAINT `wp_booking_documents_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `wp_bookings` (`id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "booking_id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "title",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "url",
+                "Type": "varchar(2048)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "type",
+                "Type": "enum('proposal','brochure','contract','payment_overview','preference_sheet','sample_menu','crew_profiles','itinerary','passport_details','captains_details','other')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "document_type",
+                "Type": "enum('file','link','form')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "file",
+                "Extra": ""
+            },
+            {
+                "Field": "visibility",
+                "Type": "enum('main_charterer','all')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "main_charterer",
+                "Extra": ""
+            },
+            {
+                "Field": "uploaded_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "metadata",
+                "Type": "json",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_booking_guests": {
+        "create_statement": "CREATE TABLE `wp_booking_guests` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `booking_id` int NOT NULL,\n  `first_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `last_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `is_main_charterer` tinyint(1) DEFAULT '0',\n  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `booking_id` (`booking_id`),\n  CONSTRAINT `wp_booking_guests_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `wp_bookings` (`id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "booking_id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "first_name",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "last_name",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "email",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_main_charterer",
+                "Type": "tinyint(1)",
+                "Null": "YES",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_bookings": {
+        "create_statement": "CREATE TABLE `wp_bookings` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `yacht_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `customer_id` bigint NOT NULL,\n  `start_date` date NOT NULL,\n  `end_date` date NOT NULL,\n  `guests` int NOT NULL,\n  `status` enum('pending','confirmed','completed','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',\n  `special_requests` text COLLATE utf8mb4_unicode_ci,\n  `total_price` decimal(10,2) NOT NULL,\n  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `customer_id` (`customer_id`),\n  CONSTRAINT `wp_bookings_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `wp_users` (`ID`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "yacht_id",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "customer_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "start_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "end_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "guests",
+                "Type": "int",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "enum('pending','confirmed','completed','cancelled')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "pending",
+                "Extra": ""
+            },
+            {
+                "Field": "special_requests",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "total_price",
+                "Type": "decimal(10,2)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_charterhub_auth_logs": {
+        "create_statement": "CREATE TABLE `wp_charterhub_auth_logs` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `user_id` bigint DEFAULT NULL,\n  `action` enum('login','signup','password_reset','verification','invitation','logout','token_refresh') NOT NULL,\n  `status` enum('success','failure') NOT NULL,\n  `ip_address` varchar(45) NOT NULL,\n  `user_agent` varchar(255) DEFAULT NULL,\n  `details` json DEFAULT NULL,\n  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `user_id` (`user_id`),\n  KEY `action` (`action`),\n  KEY `status` (`status`),\n  KEY `created_at` (`created_at`)\n) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "action",
+                "Type": "enum('login','signup','password_reset','verification','invitation','logout','token_refresh')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "enum('success','failure')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "ip_address",
+                "Type": "varchar(45)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "user_agent",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "details",
+                "Type": "json",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            }
+        ],
+        "row_count": 6
+    },
+    "wp_charterhub_booking_guests": {
+        "create_statement": "CREATE TABLE `wp_charterhub_booking_guests` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `booking_id` bigint NOT NULL,\n  `user_id` bigint NOT NULL,\n  `created_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `booking_user` (`booking_id`,`user_id`),\n  KEY `booking_id` (`booking_id`),\n  KEY `user_id` (`user_id`),\n  CONSTRAINT `wp_charterhub_booking_guests_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `wp_charterhub_bookings` (`id`) ON DELETE CASCADE,\n  CONSTRAINT `wp_charterhub_booking_guests_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `wp_users` (`ID`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "booking_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_charterhub_bookings": {
+        "create_statement": "CREATE TABLE `wp_charterhub_bookings` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `yacht_id` bigint NOT NULL,\n  `main_charterer_id` bigint NOT NULL,\n  `start_date` date NOT NULL,\n  `end_date` date NOT NULL,\n  `status` varchar(20) NOT NULL DEFAULT 'pending',\n  `total_price` decimal(10,2) NOT NULL,\n  `created_at` datetime NOT NULL,\n  `updated_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `main_charterer_id` (`main_charterer_id`),\n  KEY `yacht_id` (`yacht_id`),\n  KEY `status` (`status`),\n  CONSTRAINT `wp_charterhub_bookings_ibfk_1` FOREIGN KEY (`main_charterer_id`) REFERENCES `wp_users` (`ID`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "yacht_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "main_charterer_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "start_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "end_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "pending",
+                "Extra": ""
+            },
+            {
+                "Field": "total_price",
+                "Type": "decimal(10,2)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_charterhub_document_relations": {
+        "create_statement": "CREATE TABLE `wp_charterhub_document_relations` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `document_id` bigint NOT NULL,\n  `related_id` bigint NOT NULL,\n  `relation_type` varchar(20) NOT NULL,\n  `created_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `document_id` (`document_id`),\n  KEY `related_id` (`related_id`),\n  KEY `relation_type` (`relation_type`),\n  CONSTRAINT `wp_charterhub_document_relations_ibfk_1` FOREIGN KEY (`document_id`) REFERENCES `wp_charterhub_documents` (`id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "document_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "related_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "relation_type",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_charterhub_documents": {
+        "create_statement": "CREATE TABLE `wp_charterhub_documents` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `title` varchar(255) NOT NULL,\n  `file_path` varchar(255) NOT NULL,\n  `file_type` varchar(50) NOT NULL,\n  `file_size` bigint NOT NULL,\n  `user_id` bigint NOT NULL,\n  `visibility` varchar(20) NOT NULL DEFAULT 'private',\n  `created_at` datetime NOT NULL,\n  `updated_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `user_id` (`user_id`),\n  KEY `visibility` (`visibility`),\n  CONSTRAINT `wp_charterhub_documents_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `wp_users` (`ID`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "title",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "file_path",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "file_type",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "file_size",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "visibility",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "private",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 2
+    },
+    "wp_jwt_tokens": {
+        "create_statement": "CREATE TABLE `wp_jwt_tokens` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `user_id` bigint unsigned NOT NULL,\n  `token_hash` varchar(255) NOT NULL,\n  `refresh_token_hash` varchar(255) DEFAULT NULL,\n  `expires_at` datetime NOT NULL,\n  `refresh_expires_at` datetime DEFAULT NULL,\n  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `revoked` tinyint(1) NOT NULL DEFAULT '0',\n  `last_used_at` datetime DEFAULT NULL,\n  PRIMARY KEY (`id`),\n  KEY `user_id` (`user_id`),\n  KEY `token_hash` (`token_hash`),\n  KEY `refresh_token_hash` (`refresh_token_hash`)\n) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "token_hash",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "refresh_token_hash",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "expires_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "refresh_expires_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "revoked",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "last_used_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 3
+    },
+    "wp_options": {
+        "create_statement": "CREATE TABLE `wp_options` (\n  `option_id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `option_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',\n  `option_value` longtext COLLATE utf8mb4_unicode_ci NOT NULL,\n  `autoload` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'yes',\n  PRIMARY KEY (`option_id`),\n  UNIQUE KEY `option_name` (`option_name`),\n  KEY `autoload` (`autoload`)\n) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "option_id",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "option_name",
+                "Type": "varchar(191)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "option_value",
+                "Type": "longtext",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "autoload",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "yes",
+                "Extra": ""
+            }
+        ],
+        "row_count": 34
+    },
+    "wp_posts": {
+        "create_statement": "CREATE TABLE `wp_posts` (\n  `ID` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `post_author` bigint unsigned NOT NULL DEFAULT '0',\n  `post_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `post_date_gmt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `post_content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,\n  `post_title` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `post_excerpt` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `post_status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'publish',\n  `comment_status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'open',\n  `ping_status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'open',\n  `post_password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',\n  `post_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',\n  `post_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `post_modified_gmt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `post_parent` bigint unsigned NOT NULL DEFAULT '0',\n  `guid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',\n  `post_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'post',\n  `comment_count` bigint NOT NULL DEFAULT '0',\n  PRIMARY KEY (`ID`),\n  KEY `post_name` (`post_name`(191)),\n  KEY `type_status_date` (`post_type`,`post_status`,`post_date`,`ID`),\n  KEY `post_parent` (`post_parent`),\n  KEY `post_author` (`post_author`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "ID",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "post_author",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "post_date",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "post_date_gmt",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "post_content",
+                "Type": "longtext",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "post_title",
+                "Type": "text",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "post_excerpt",
+                "Type": "text",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "post_status",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "publish",
+                "Extra": ""
+            },
+            {
+                "Field": "comment_status",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "open",
+                "Extra": ""
+            },
+            {
+                "Field": "ping_status",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "open",
+                "Extra": ""
+            },
+            {
+                "Field": "post_password",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "post_name",
+                "Type": "varchar(200)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "post_modified",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "post_modified_gmt",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "post_parent",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "guid",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "post_type",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "post",
+                "Extra": ""
+            },
+            {
+                "Field": "comment_count",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            }
+        ],
+        "row_count": 0
+    },
+    "wp_usermeta": {
+        "create_statement": "CREATE TABLE `wp_usermeta` (\n  `umeta_id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `user_id` bigint unsigned NOT NULL DEFAULT '0',\n  `meta_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `meta_value` longtext COLLATE utf8mb4_unicode_ci,\n  PRIMARY KEY (`umeta_id`),\n  KEY `user_id` (`user_id`),\n  KEY `meta_key` (`meta_key`(191))\n) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "columns": [
+            {
+                "Field": "umeta_id",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint unsigned",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "meta_key",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "meta_value",
+                "Type": "longtext",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "row_count": 69
+    },
+    "wp_users": {
+        "create_statement": "CREATE TABLE `wp_users` (\n  `ID` bigint NOT NULL AUTO_INCREMENT,\n  `user_login` varchar(60) NOT NULL DEFAULT '',\n  `user_pass` varchar(255) NOT NULL DEFAULT '',\n  `user_email` varchar(100) NOT NULL DEFAULT '',\n  `user_registered` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `display_name` varchar(250) NOT NULL DEFAULT '',\n  `first_name` varchar(100) NOT NULL DEFAULT '',\n  `last_name` varchar(100) NOT NULL DEFAULT '',\n  `address` text,\n  `role` varchar(20) NOT NULL DEFAULT 'charter_client',\n  `verified` tinyint(1) DEFAULT '0',\n  `verification_token` varchar(255) DEFAULT NULL,\n  `reset_password_token` varchar(255) DEFAULT NULL,\n  `reset_password_expires` datetime DEFAULT NULL,\n  `refresh_token` varchar(255) DEFAULT NULL,\n  `last_login` datetime DEFAULT NULL,\n  `last_ip` varchar(45) DEFAULT NULL,\n  `last_user_agent` varchar(255) DEFAULT NULL,\n  `metadata` json DEFAULT NULL,\n  `phone_number` varchar(20) DEFAULT NULL,\n  `login_attempts` int DEFAULT '0',\n  PRIMARY KEY (`ID`),\n  UNIQUE KEY `user_login` (`user_login`),\n  UNIQUE KEY `user_email` (`user_email`)\n) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "columns": [
+            {
+                "Field": "ID",
+                "Type": "bigint",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_login",
+                "Type": "varchar(60)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "user_pass",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "user_email",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "user_registered",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": "CURRENT_TIMESTAMP",
+                "Extra": "DEFAULT_GENERATED"
+            },
+            {
+                "Field": "display_name",
+                "Type": "varchar(250)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "first_name",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "last_name",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "",
+                "Extra": ""
+            },
+            {
+                "Field": "address",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "role",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "charter_client",
+                "Extra": ""
+            },
+            {
+                "Field": "verified",
+                "Type": "tinyint(1)",
+                "Null": "YES",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "verification_token",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "reset_password_token",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "reset_password_expires",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "refresh_token",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "last_login",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "last_ip",
+                "Type": "varchar(45)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "last_user_agent",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "metadata",
+                "Type": "json",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "phone_number",
+                "Type": "varchar(20)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "login_attempts",
+                "Type": "int",
+                "Null": "YES",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            }
+        ],
+        "row_count": 11
+    }
+}
