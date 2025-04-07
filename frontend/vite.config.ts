@@ -1,7 +1,6 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { Plugin } from 'vite'
 
 // Custom plugin for header logging
 const headerLoggingPlugin = (): Plugin => ({
@@ -117,7 +116,12 @@ export default defineConfig(({ mode }) => {
         jsxRuntime: 'automatic',
         babel: {
           plugins: [
-            ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
+            [
+              '@babel/plugin-transform-react-jsx',
+              {
+                runtime: 'automatic'
+              }
+            ]
           ]
         }
       }),
@@ -132,6 +136,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      open: true,
+      host: '0.0.0.0',
+      strictPort: false,
       headers: {
         // Force CSP headers with multiple variants to prevent overrides
         'Content-Security-Policy': developmentCsp,
@@ -159,11 +166,16 @@ export default defineConfig(({ mode }) => {
           secure: true,
           rewrite: (path) => path
         },
-        // Add proxy for direct API endpoints
         '/api': {
-          target: 'http://localhost:8000',
+          target: process.env.VITE_API_URL || 'https://charterhub-api.onrender.com',
           changeOrigin: true,
-          secure: false
+          rewrite: (path) => path.replace(/^\/api/, ''),
+          secure: false,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('proxy error', err)
+            })
+          }
         },
         // Add direct proxy for auth endpoints
         '/auth': {
