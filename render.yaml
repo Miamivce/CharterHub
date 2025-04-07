@@ -3,7 +3,7 @@ services:
     name: charterhub-api
     runtime: php
     rootDirectory: backend
-    buildCommand: composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+    buildCommand: ./render-build.sh
     startCommand: php -S 0.0.0.0:$PORT
     envVars:
       - key: DB_HOST
@@ -23,4 +23,4 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://charterhub.com 
+        value: https://app.yachtstory.com 
