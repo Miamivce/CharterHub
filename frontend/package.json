@@ -84,7 +84,7 @@
     "start": "vite --mode development --force",
     "build": "vite build",
     "typecheck": "tsc --skipLibCheck || true",
-    "vercel-build": "node build.js",
+    "vercel-build": "node build.cjs",
     "postinstall": "node postinstall.cjs || true",
     "postinstall:cjs": "node postinstall.cjs || true",
     "fix-case-sensitivity": "node postinstall.cjs || true",
