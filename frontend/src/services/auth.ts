@@ -198,6 +198,115 @@ export const authService = {
         if (mockUser) {
           console.log('Development mode: Authenticated registered user:', mockUser.email)
 
+          // Convert any 'customer' role to 'client'
+          const userRole = mockUser.role === 'admin' ? 'admin' : 'client'
+          let user: User
+
+          if (userRole === 'admin') {
+            user = {
+              id: mockUser.id || 'mock-' + Math.random().toString(36).substring(2, 9),
+              email: mockUser.email,
+              firstName: mockUser.firstName,
+              lastName: mockUser.lastName,
+              role: 'admin',
+              permissions: ['all'],
+            }
+          } else {
+            user = {
+              id: mockUser.id || 'mock-' + Math.random().toString(36).substring(2, 9),
+              email: mockUser.email,
+              firstName: mockUser.firstName,
+              lastName: mockUser.lastName,
+              role: 'client',
+              phone: mockUser.phone || mockUser.phoneNumber,
+              company: mockUser.company,
+            }
+          }
+
+          return {
+            token: 'mock-jwt-token',
+            user: user,
+          }
+        }
+      } catch (error) {
+        console.error('Error checking mock_users:', error)
+      }
+    }
+
+    throw new Error('Invalid credentials')
+  },
+
+  async register(data: RegisterData): Promise<AuthResponse> {
+    // Simulate network delay
+    await delay(100)
+
+    // For development environment only
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        console.log('Development mode: Registering new user:', data.email)
+
+        // Create a new mock user
+        const newUser: User = {
+          id: 'mock-user-' + Math.random().toString(36).substring(2, 9),
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: 'client', // Always register as client
+          phone: data.phoneNumber,
+          company: data.company,
+        }
+
+        // Save in localStorage for development (this is mock data - never store real credentials)
+        const MOCK_USERS = JSON.parse(localStorage.getItem('charterhub_mock_users') || '[]')
+        MOCK_USERS.push({
+          userId: newUser.id,
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          created: new Date().toISOString(),
+        })
+        localStorage.setItem('charterhub_mock_users', JSON.stringify(MOCK_USERS))
+
+        // Add user to customerService to ensure synchronization
+        try {
+          await customerService.createCustomer({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phone: data.phoneNumber,
+            company: data.company,
+          })
+          console.log('Created customer record for newly registered user:', data.email)
+        } catch (err) {
+          console.error('Failed to create customer record for registered user:', err)
+          // Continue with authentication even if customer creation fails
+          // This prevents blocking the user from accessing the app
+        }
+
+        return {
+          token: 'mock-jwt-token',
+          user: newUser,
+        }
+      } catch (error) {
+        console.error('Development mode: Error registering user:', error)
+        throw new Error('Failed to register user')
+      }
+    }
+
+    // Check for users created during registration (development mode only)
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const MOCK_USERS = JSON.parse(localStorage.getItem('charterhub_mock_users') || '[]')
+        const mockUser = MOCK_USERS.find(
+          (user: any) =>
+            user.email.toLowerCase() === credentials.email.toLowerCase() &&
+            user.password === credentials.password
+        )
+
+        if (mockUser) {
+          console.log('Development mode: Authenticated registered user:', mockUser.email)
+
           // Find the actual user data from customerService
           const allCustomers = await customerService.getCustomers()
           const userRecord = allCustomers.find(
@@ -274,61 +383,6 @@ export const authService = {
     }
 
     throw new Error('Invalid credentials')
-  },
-
-  async register(data: RegisterData): Promise<AuthResponse> {
-    // Minimal delay (100ms instead of 800ms)
-    await delay(100)
-
-    // Simulate registration
-    const userId = `user-${Math.floor(Math.random() * 10000)}`
-    const newUser: User = {
-      id: userId,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      role: 'client',
-    }
-
-    // Save in localStorage for development (this is mock data - never store real credentials)
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const MOCK_USERS = JSON.parse(localStorage.getItem('charterhub_mock_users') || '[]')
-        MOCK_USERS.push({
-          userId,
-          email: data.email,
-          password: data.password,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          created: new Date().toISOString(),
-        })
-        localStorage.setItem('charterhub_mock_users', JSON.stringify(MOCK_USERS))
-      } catch (error) {
-        console.error('Error storing mock user:', error)
-      }
-    }
-
-    // Add user to customerService to ensure synchronization
-    try {
-      await customerService.createCustomer({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phoneNumber,
-        company: data.company,
-      })
-      console.log('Created customer record for newly registered user:', data.email)
-    } catch (err) {
-      console.error('Failed to create customer record for registered user:', err)
-      // Continue with authentication even if customer creation fails
-      // This prevents blocking the user from accessing the app
-    }
-
-    // Return token and user data
-    return {
-      token: 'mock-jwt-token',
-      user: newUser,
-    }
   },
 
   async forgotPassword(email: string): Promise<void> {

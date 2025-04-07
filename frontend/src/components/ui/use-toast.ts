@@ -9,6 +9,12 @@ export interface Toast {
   action?: React.ReactNode
 }
 
+export interface ToastProps {
+  title?: string
+  description?: ReactNode
+  duration?: number
+}
+
 interface ToastContext {
   toasts: Toast[]
   addToast: (toast: Omit<Toast, 'id'>) => void
@@ -40,27 +46,32 @@ const useToast = (): ToastContext => {
   }
 }
 
-export const toast = {
-  success: (props: { title?: string; description?: ReactNode; duration?: number }) => {
-    // Implementation details would be added in a real app
-    console.log('Toast success:', props)
-  },
-  error: (props: { title?: string; description?: ReactNode; duration?: number }) => {
-    // Implementation details would be added in a real app
-    console.log('Toast error:', props)
-  },
-  warning: (props: { title?: string; description?: ReactNode; duration?: number }) => {
-    // Implementation details would be added in a real app
-    console.log('Toast warning:', props)
-  },
-  info: (props: { title?: string; description?: ReactNode; duration?: number }) => {
-    // Implementation details would be added in a real app
-    console.log('Toast info:', props)
-  },
-  custom: (props: { title?: string; description?: ReactNode; duration?: number }) => {
-    // Implementation details would be added in a real app
-    console.log('Toast custom:', props)
-  },
+// Create a callable toast function
+const createToast = (props: ToastProps) => {
+  // Implement toast display logic here
+  console.log('Toast created:', props)
 }
+
+// Export as a callable function with methods
+export const toast = Object.assign(
+  createToast,
+  {
+    success: (props: ToastProps) => {
+      console.log('Toast success:', props)
+    },
+    error: (props: ToastProps) => {
+      console.log('Toast error:', props)
+    },
+    warning: (props: ToastProps) => {
+      console.log('Toast warning:', props)
+    },
+    info: (props: ToastProps) => {
+      console.log('Toast info:', props)
+    },
+    custom: (props: ToastProps) => {
+      console.log('Toast custom:', props)
+    },
+  }
+)
 
 export { useToast }

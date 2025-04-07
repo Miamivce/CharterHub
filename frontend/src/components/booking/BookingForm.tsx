@@ -14,6 +14,7 @@ import { destinationService } from '@/services/destinationService'
 import { customerService } from '@/services/customerService'
 import { Yacht } from '@/types/yacht'
 import { Destination } from '@/types/destination'
+import { bookingService } from '@/services/bookingService'
 
 interface BookingFormProps {
   booking?: BookingWithDetails | null
@@ -254,13 +255,25 @@ export function BookingForm({ booking, onSuccess, onCancel, useAdminService = fa
           guestList: values.guestList
         }
 
-        console.log('Submitting booking with data:', bookingData);
-
-        if (booking) {
-          await updateBooking(booking.id, bookingData)
-        } else {
-          await createBooking(bookingData)
+        console.log('Creating booking with data:', bookingData)
+        
+        // Pass only the properties needed for CreateBookingDTO
+        const bookingDTO = {
+          yachtId: bookingData.yachtId,
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          mainCharterer: bookingData.mainCharterer,
+          guestList: bookingData.guestList,
+          guests: bookingData.guests,
+          destination: bookingData.destination,
+          totalPrice: values.totalPrice,
+          specialRequests: values.specialRequests,
+          notes: values.notes || '',
+          status: values.status || 'pending',
+          documents: values.documents || []
         }
+
+        const booking = await bookingService.createBooking(bookingDTO)
 
         onSuccess?.()
       } catch (error) {

@@ -119,13 +119,13 @@ export function DocumentProvider({ children }: ContextProviderProps) {
       showNotification({
         type: 'success',
         message: 'Document added successfully',
-      })
+      }, null)
     },
     onError: (error) => {
       showNotification({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to add document',
-      })
+      }, null)
     },
   })
 
@@ -150,13 +150,13 @@ export function DocumentProvider({ children }: ContextProviderProps) {
       showNotification({
         type: 'success',
         message: 'Document deleted successfully',
-      })
+      }, null)
     },
     onError: (error) => {
       showNotification({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to delete document',
-      })
+      }, null)
     },
   })
 
@@ -186,13 +186,13 @@ export function DocumentProvider({ children }: ContextProviderProps) {
       showNotification({
         type: 'success',
         message: 'Document updated successfully',
-      })
+      }, null)
     },
     onError: (error) => {
       showNotification({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to update document',
-      })
+      }, null)
     },
   })
 
@@ -239,13 +239,13 @@ export function DocumentProvider({ children }: ContextProviderProps) {
       showNotification({
         type: 'success',
         message: 'Document linked successfully',
-      })
+      }, null)
     },
     onError: (error) => {
       showNotification({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to link document',
-      })
+      }, null)
     }
   })
 
@@ -308,13 +308,13 @@ export function DocumentProvider({ children }: ContextProviderProps) {
       showNotification({
         type: 'success',
         message: 'Document added to booking',
-      })
+      }, null)
     },
     onError: (error) => {
       showNotification({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to add booking document',
-      })
+      }, null)
     }
   })
 
