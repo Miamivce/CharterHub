@@ -1,10 +1,10 @@
 services:
   - type: web
     name: charterhub-api
-    runtime: php
+    env: docker
+    rootDirectory: backend
+    dockerfilePath: Dockerfile
     plan: free
-    buildCommand: cd backend && bash -c "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\" && php composer-setup.php && php -r \"unlink('composer-setup.php');\" && php composer.phar install --no-interaction --prefer-dist --optimize-autoloader --no-dev"
-    startCommand: cd backend && php -S 0.0.0.0:$PORT
     envVars:
       - key: DB_HOST
         value: mysql-charterhub-charterhub.c.aivencloud.com
