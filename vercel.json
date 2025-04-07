@@ -54,12 +54,16 @@
     { "handle": "filesystem" },
     { "src": "/env-config.js", "dest": "/env-config.js" },
     { "src": "/redirect.js", "dest": "/redirect.js" },
+    { "src": "/public/(.*)", "dest": "/public/$1" },
+    { "src": "/images/(.*)", "dest": "/images/$1" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*)\\.js", "dest": "/$1.js" },
     { "src": "/(.*)\\.css", "dest": "/$1.css" },
     { "src": "/(.*)\\.png", "dest": "/$1.png" },
     { "src": "/(.*)\\.jpg", "dest": "/$1.jpg" },
     { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
+    { "src": "/admin", "dest": "/index.html" },
+    { "src": "/admin/(.*)", "dest": "/index.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "env": {
@@ -67,7 +71,7 @@
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
     "NODE_ENV": "production",
-    "VITE_ALLOWED_ORIGINS": "https://charter-cfce3n0h6-maurits-s-projects.vercel.app,https://app.yachtstory.be",
-    "VITE_FRONTEND_URL": "https://charter-cfce3n0h6-maurits-s-projects.vercel.app"
+    "VITE_ALLOWED_ORIGINS": "https://charter-391b9okmj-maurits-s-projects.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-391b9okmj-maurits-s-projects.vercel.app"
   }
 } 
