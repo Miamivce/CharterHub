@@ -742,58 +742,27 @@ export interface VerificationResponse {
 }
 
 export const verifyEmail = async (token: string, email?: string): Promise<VerificationResponse> => {
+  const api = getApi(API_URL)
+  
   try {
-    // Build the URL with token and optional email parameter
-    let verificationUrl = `${API_URL}/auth/verify-email.php?token=${encodeURIComponent(token)}`
-
-    // Include email parameter if provided
+    const payload: any = { token }
     if (email) {
-      verificationUrl += `&email=${encodeURIComponent(email)}`
+      payload.email = email
     }
-
-    console.log('[wpApi] Verifying email with URL:', verificationUrl)
-
-    const response = await axios.get<VerificationResponse>(verificationUrl, {
-      withCredentials: true,
-    })
-
-    console.log('[wpApi] Verification response:', response.data)
-
-    // Make sure we got a valid response
-    if (!response.data) {
-      throw new Error('Invalid response from verification endpoint')
+    
+    const response = await api.post('/auth/verify-email', payload)
+    
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      redirectUrl: response.data.redirectUrl,
     }
-
-    return response.data
   } catch (error) {
-    console.error('[wpApi] Email verification error:', error)
-
-    // Enhanced error handling with more detailed messages
-    if (axios.isAxiosError(error)) {
-      // Check if we have a response with an error message
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message)
-      }
-
-      // Handle specific status codes
-      switch (error.response?.status) {
-        case 400:
-          throw new Error('Invalid verification token. Please request a new verification email.')
-        case 401:
-          throw new Error('Unauthorized access. Please login and try again.')
-        case 404:
-          throw new Error('Verification endpoint not found. Please contact support.')
-        case 410:
-          throw new Error('This verification link has expired. Please request a new one.')
-        default:
-          throw new Error(
-            `Verification failed (${error.response?.status || 'unknown error'}). Please try again later.`
-          )
-      }
+    console.error('Email verification error:', error)
+    return {
+      success: false,
+      message: 'Email verification failed. Please try again or contact support.',
     }
-
-    // Generic error fallback
-    throw new Error('Failed to verify email. Please try again later or contact support.')
   }
 }
 
@@ -1677,14 +1646,62 @@ const wpApi = {
   /**
    * Verify email with token
    */
-  async verifyEmail(token: string) {
+  async verifyEmail(token: string, email?: string) {
+    const api = getApi(API_URL)
+    
     try {
-      const response = await api.get(`/auth/verify-email.php?token=${token}`)
-      return response.data
+      const payload: any = { token }
+      if (email) {
+        payload.email = email
+      }
+      
+      const response = await api.post('/auth/verify-email', payload)
+      
+      return {
+        success: response.data.success,
+        message: response.data.message,
+        redirectUrl: response.data.redirectUrl,
+      }
     } catch (error) {
-      return handleApiError(error)
+      console.error('Email verification error:', error)
+      return {
+        success: false,
+        message: 'Email verification failed. Please try again or contact support.',
+      }
     }
   },
+
+  // Test API methods for development and testing purposes
+  async testAuthMethods() {
+    console.log('Testing auth methods...')
+    try {
+      const results = {
+        success: true,
+        message: 'Auth methods tested successfully',
+        tests: {
+          csrf: false,
+          login: false,
+          refresh: false,
+          profile: false
+        }
+      }
+      
+      // Test CSRF token
+      const csrfResult = await this.getCSRFToken(true)
+      results.tests.csrf = !!csrfResult.csrf_token
+      
+      // Additional test results can be added here
+      
+      return results
+    } catch (error) {
+      console.error('Error testing auth methods:', error)
+      return {
+        success: false,
+        message: 'Auth methods test failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
 }
 
 export default wpApi

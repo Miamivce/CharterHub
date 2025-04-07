@@ -26,6 +26,17 @@ interface CustomerData {
   company: string
 }
 
+export interface CreateCustomerDTO {
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  company?: string
+  country?: string
+  address?: string
+  notes?: string
+}
+
 export interface RegisteredCustomer {
   id: string | number
   email: string
@@ -49,6 +60,27 @@ export interface CustomerBooking {
     name: string
   }
   // Add other fields as needed
+}
+
+// Local storage utility functions
+export const loadCustomersFromStorage = (): Customer[] => {
+  try {
+    const customersJSON = localStorage.getItem('customers')
+    if (customersJSON) {
+      return JSON.parse(customersJSON)
+    }
+  } catch (error) {
+    console.error('Error loading customers from localStorage:', error)
+  }
+  return []
+}
+
+export const saveCustomersToStorage = (customers: Customer[]): void => {
+  try {
+    localStorage.setItem('customers', JSON.stringify(customers))
+  } catch (error) {
+    console.error('Error saving customers to localStorage:', error)
+  }
 }
 
 export class CustomerService {

@@ -72,9 +72,14 @@ export interface JWTAuthContextType extends AuthState {
   ) => Promise<User>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   refreshUserData: () => Promise<User | null>
+  // Aliases for backward compatibility
+  refreshUser: () => Promise<User | null> // Alias for refreshUserData
   // Loading and error states
   loading: LoadingStates
   errors: AuthErrors
+  // Simplified loading and error accessors
+  isLoading: boolean // Overall loading state
+  error: string | null // Latest error message
 }
 
 // Create auth context
@@ -871,8 +876,11 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         updateProfile: handleUpdateProfile,
         changePassword: handleChangePassword,
         refreshUserData: handleRefreshUserData,
+        refreshUser: handleRefreshUserData,
         loading,
         errors,
+        isLoading: Object.values(loading).some(Boolean),
+        error: Object.values(errors).find((err) => err !== null)?.message || null,
       }}
     >
       {children}

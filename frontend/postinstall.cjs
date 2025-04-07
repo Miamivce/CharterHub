@@ -1,15 +1,10 @@
 #!/usr/bin/env node
 
 // Script to handle case sensitivity issues with component imports
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const fs = require('fs');
+const path = require('path');
 
-// Get the directory name of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-console.log('Running postinstall script to fix case sensitivity issues...');
+console.log('Running postinstall script (CJS version) to fix case sensitivity issues...');
 
 // Function to create component duplicates for case insensitivity
 function createDuplicatesForCaseInsensitivity(directory, components) {

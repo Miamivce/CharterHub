@@ -1,4 +1,8 @@
 {
+  "buildCommand": "npm run vercel-build",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "installCommand": "echo Skipping frontend default install",
   "build": {
     "env": {
       "VITE_API_BASE_URL": "https://charterhub-api.onrender.com",
@@ -37,9 +41,5 @@
       "src": "^/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "buildCommand": "cd frontend && npm install && npm run vercel-build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "echo Skipping default install",
-  "framework": "vite"
+  ]
 } 

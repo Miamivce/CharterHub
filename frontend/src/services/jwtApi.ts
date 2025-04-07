@@ -1148,6 +1148,24 @@ const jwtApi = {
       return false
     }
   },
+
+  // Test method for CORS testing
+  async testCors(): Promise<{ success: boolean; message: string }> {
+    try {
+      const client = createApiClient()
+      const response = await client.get('/test/cors')
+      return {
+        success: true,
+        message: response.data.message || 'CORS test successful'
+      }
+    } catch (error) {
+      console.error('[jwtApi] CORS test failed:', error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
 }
 
 // Export the refreshTokens function for the interceptor
