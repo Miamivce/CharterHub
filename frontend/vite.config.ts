@@ -26,11 +26,11 @@ const developmentCsp = [
   "default-src 'self'",
   
   // Allow connections to development APIs, websockets, and telemetry
-  "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.cloudflare.com https://*.googleapis.com http://localhost:* ws://localhost:* https://yachtstory.com https://clerk-telemetry.com",
+  "connect-src 'self' https://*.cloudflare.com https://*.googleapis.com http://localhost:* ws://localhost:* https://yachtstory.com https://charterhub-api.onrender.com https://*.yachtstory.be",
   
-  // Scripts - Allow Clerk, Cloudflare, and development necessities
+  // Scripts - Allow development necessities
   // Note: 'unsafe-inline' needed for development, use nonces in production
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3000 https://*.clerk.accounts.dev https://challenges.cloudflare.com https://*.cloudflare.com https://*.googleapis.com",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3000 https://challenges.cloudflare.com https://*.cloudflare.com https://*.googleapis.com",
   
   // Styles - Allow inline for development
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -41,8 +41,8 @@ const developmentCsp = [
   // Images - Allow data URIs and external sources
   "img-src 'self' data: https://* blob:",
   
-  // Frames - Required for Clerk and Cloudflare
-  "frame-src 'self' https://*.clerk.com https://*.cloudflare.com https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+  // Frames - Required for Cloudflare
+  "frame-src 'self' https://*.cloudflare.com https://challenges.cloudflare.com",
   
   // Workers and child contexts
   "worker-src 'self' blob:",
@@ -103,9 +103,9 @@ export default defineConfig({
     },
     proxy: {
       '/wp-json': {
-        target: 'http://localhost:8888',
+        target: 'https://yachtstory.com',
         changeOrigin: true,
-        secure: false,
+        secure: true,
         rewrite: (path) => path,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
@@ -121,8 +121,6 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
-        // Don't rewrite the path, keep it as /api/destinations.php
-        // rewrite: (path) => path.replace(/^\/api/, ''),
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
             console.log('API Proxy error:', err);
@@ -180,4 +178,8 @@ export default defineConfig({
       },
     },
   },
+  // Configure base path based on domain for admin/client split
+  base: process.env.NODE_ENV === 'production' 
+    ? (process.env.VERCEL_URL?.includes('admin') ? '/admin' : '/')
+    : '/',
 }) 

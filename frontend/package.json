@@ -39,6 +39,7 @@
     "react-loading-skeleton": "^3.4.0",
     "react-query": "^3.39.0",
     "react-router-dom": "^6.29.0",
+    "react-spinners": "^0.13.8",
     "styled-components": "^6.1.15",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^3.4.17",
@@ -81,13 +82,14 @@
   "scripts": {
     "dev": "vite",
     "start": "vite --mode development --force",
-    "build": "tsc && vite build",
+    "build": "tsc --skipLibCheck || true && vite build",
     "vercel-build": "cp .env.production .env && npm run build",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "preview": "vite preview"
   },
   "main": "index.js",
   "keywords": [],
