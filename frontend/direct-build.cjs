@@ -12,6 +12,19 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
+// Create a proper redirect.js file
+console.log('Creating proper redirect.js file');
+const redirectJs = `
+// Redirect script - properly formatted as JavaScript
+(function() {
+  // Only redirect from root path to /admin
+  if (window.location.pathname === '/') {
+    window.location.href = '/admin';
+  }
+})();
+`;
+fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
+
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');
 const viteConfigPath = path.join(process.cwd(), 'vite.config.simple.cjs');
@@ -20,20 +33,19 @@ module.exports = {
   root: '${process.cwd().replace(/\\/g, '\\\\')}',
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
-    assetsInlineLimit: 0, // Don't inline any assets as base64
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@headlessui/react', '@heroicons/react']
-        }
-      }
-    }
+    emptyOutDir: true
   },
   resolve: {
     alias: {
       '@': '${path.join(process.cwd(), 'src').replace(/\\/g, '\\\\')}'
+    }
+  },
+  server: {
+    cors: {
+      origin: "*",
+      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
+      preflightContinue: false,
+      optionsSuccessStatus: 204
     }
   },
   define: {
@@ -42,126 +54,45 @@ module.exports = {
       .filter(key => key.startsWith('VITE_'))
       .map(key => `'import.meta.env.${key}': JSON.stringify('${process.env[key]}')`)
       .join(',\n    ')}
-  },
-  plugins: [
-    {
-      name: 'copy-images-plugin',
-      generateBundle() {
-        // This is just a marker for our script to know we need to copy images
-        console.log('COPY_IMAGES_MARKER: Will copy images after build');
-      }
-    }
-  ]
+  }
 };
 `;
 fs.writeFileSync(viteConfigPath, minimalConfig);
 
-// Helper function to copy directories recursively
-function copyDir(src, dest) {
-  if (!fs.existsSync(src)) return;
-  
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
-  
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    
-    if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  }
-}
+// Create a CORS proxy if needed
+console.log('Creating CORS proxy setup');
+const corsProxyPath = path.join(process.cwd(), 'cors-proxy.js');
+const corsProxyContent = `
+// Simple CORS proxy setup for local development
+const cors = require('cors');
+const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
-// Copy image assets from public or src directories
-function copyAssets() {
-  // Copy from public directory if it exists
-  const publicDir = path.join(process.cwd(), 'public');
-  if (fs.existsSync(publicDir)) {
-    console.log('Copying assets from public directory');
-    copyDir(publicDir, distDir);
-  }
-  
-  // Copy images from src directory if it exists
-  const srcImagesDir = path.join(process.cwd(), 'src', 'assets', 'images');
-  if (fs.existsSync(srcImagesDir)) {
-    console.log('Copying images from src/assets/images');
-    const distImagesDir = path.join(distDir, 'assets', 'images');
-    if (!fs.existsSync(distImagesDir)) {
-      fs.mkdirSync(distImagesDir, { recursive: true });
-    }
-    copyDir(srcImagesDir, distImagesDir);
-  }
-  
-  // Copy any other image directories that might exist
-  const srcAssetsDir = path.join(process.cwd(), 'src', 'assets');
-  if (fs.existsSync(srcAssetsDir)) {
-    const entries = fs.readdirSync(srcAssetsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const srcPath = path.join(srcAssetsDir, entry.name);
-        const destPath = path.join(distDir, 'assets', entry.name);
-        copyDir(srcPath, destPath);
-      }
-    }
-  }
+const app = express();
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
 
-  // Also try src/images if it exists
-  const srcImagesDir2 = path.join(process.cwd(), 'src', 'images');
-  if (fs.existsSync(srcImagesDir2)) {
-    console.log('Copying images from src/images');
-    const distImagesDir = path.join(distDir, 'images');
-    if (!fs.existsSync(distImagesDir)) {
-      fs.mkdirSync(distImagesDir, { recursive: true });
-    }
-    copyDir(srcImagesDir2, distImagesDir);
+// Proxy API requests
+app.use('/api', createProxyMiddleware({
+  target: 'https://charterhub-api.onrender.com',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api': '/'
+  },
+  onProxyRes: function(proxyRes, req, res) {
+    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
   }
+}));
 
-  // Create redirect script for admin dashboard
-  const redirectJS = `
-// Redirect script to ensure admin dashboard is loaded
-(function() {
-  if (window.location.pathname === '/' || window.location.pathname === '') {
-    window.location.href = '/admin';
-  }
-})();
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(\`CORS proxy server running on port \${PORT}\`);
+});
 `;
-  fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJS);
-  
-  // Add redirect script to index.html
-  const indexPath = path.join(distDir, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    let indexContent = fs.readFileSync(indexPath, 'utf8');
-    
-    // Only add redirect script if it's not already there
-    if (!indexContent.includes('redirect.js')) {
-      indexContent = indexContent.replace('</head>', '  <script src="/redirect.js"></script>\n</head>');
-      fs.writeFileSync(indexPath, indexContent);
-    }
-
-    // Also create a root redirect file
-    const rootRedirectHTML = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0;url=/admin">
-  <script>window.location.href = "/admin";</script>
-  <title>Redirecting to Admin</title>
-</head>
-<body>
-  <p>Redirecting to admin dashboard...</p>
-</body>
-</html>
-`;
-    fs.writeFileSync(path.join(distDir, '404.html'), indexContent);
-    fs.writeFileSync(path.join(distDir, 'admin.html'), indexContent);
-  }
-}
+fs.writeFileSync(corsProxyPath, corsProxyContent);
 
 // Create a very minimal package.json if needed
 if (!fs.existsSync(path.join(process.cwd(), 'node_modules', 'vite'))) {
@@ -194,8 +125,63 @@ try {
   buildSuccess = true;
   console.log('Build succeeded');
   
-  // Copy images and other assets
-  copyAssets();
+  // Create env-config.js to ensure environment variables are available
+  console.log('Creating env-config.js');
+  const envConfig = `
+// Environment variables for the frontend
+window.ENV = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {}),
+    null,
+    2
+  )};
+
+// Make environment variables available through import.meta.env
+window.import = window.import || {};
+window.import.meta = window.import.meta || {};
+window.import.meta.env = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {
+        MODE: 'production',
+        PROD: true,
+        DEV: false
+      }),
+    null,
+    2
+  )};
+`;
+  fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+  
+  // Copy the redirect.js file over
+  fs.copyFileSync(path.join(distDir, 'redirect.js'), path.join(distDir, 'redirect.js'));
+  
+  // Make sure index.html includes the env-config.js and redirect.js scripts
+  const indexPath = path.join(distDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    let indexContent = fs.readFileSync(indexPath, 'utf8');
+    if (!indexContent.includes('env-config.js')) {
+      indexContent = indexContent.replace(
+        '</head>',
+        '<script src="/env-config.js"></script>\n</head>'
+      );
+    }
+    if (!indexContent.includes('redirect.js')) {
+      indexContent = indexContent.replace(
+        '</body>',
+        '<script src="/redirect.js"></script>\n</body>'
+      );
+    }
+    fs.writeFileSync(indexPath, indexContent);
+    console.log('Updated index.html with environment and redirect scripts');
+  }
 } catch (err) {
   console.error('Direct build with npx failed:', err.message);
 
@@ -218,69 +204,79 @@ try {
           fs.mkdirSync(distDir, { recursive: true });
         }
         const distIndexPath = path.join(distDir, 'index.html');
-        fs.writeFileSync(distIndexPath, indexContent);
-        console.log('Copied index.html to dist');
         
-        // Copy src and public directories if they exist
+        // Add environment and redirect scripts
+        const modifiedContent = indexContent
+          .replace(
+            '</head>',
+            '<script src="/env-config.js"></script>\\n</head>'
+          )
+          .replace(
+            '</body>',
+            '<script src="/redirect.js"></script>\\n</body>'
+          );
+        
+        fs.writeFileSync(distIndexPath, modifiedContent);
+        console.log('Copied and modified index.html to dist');
+        
+        // Create env-config.js
+        const envConfig = \`
+window.ENV = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {}),
+    null,
+    2
+  ).replace(/"/g, '\\"')};
+
+window.import = window.import || {};
+window.import.meta = window.import.meta || {};
+window.import.meta.env = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {
+        MODE: 'production',
+        PROD: true,
+        DEV: false
+      }),
+    null,
+    2
+  ).replace(/"/g, '\\"')};
+\`;
+        fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+        
+        // Create redirect.js
+        const redirectJs = \`
+// Redirect script
+(function() {
+  // Only redirect from root path to /admin
+  if (window.location.pathname === '/') {
+    window.location.href = '/admin';
+  }
+})();
+\`;
+        fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
+        
+        // Copy relevant assets
         const srcDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'src');
-        const publicDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'public');
-        
-        // Copy assets
         if (fs.existsSync(srcDir)) {
-          // Copy the src directory assets recursively
-          function copyDir(src, dest) {
-            if (!fs.existsSync(dest)) {
-              fs.mkdirSync(dest, { recursive: true });
-            }
-            
-            const entries = fs.readdirSync(src, { withFileTypes: true });
-            for (const entry of entries) {
-              const srcPath = path.join(src, entry.name);
-              const destPath = path.join(dest, entry.name);
-              
-              if (entry.isDirectory()) {
-                copyDir(srcPath, destPath);
-              } else {
-                // Only copy image and asset files
-                if (entry.name.match(/(\\.(png|jpe?g|gif|svg|webp|ico|ttf|woff|woff2))$/i)) {
-                  fs.copyFileSync(srcPath, destPath);
-                }
-              }
-            }
+          const assetsDir = path.join(distDir, 'assets');
+          if (!fs.existsSync(assetsDir)) {
+            fs.mkdirSync(assetsDir, { recursive: true });
           }
           
-          // Copy assets directories
-          const assetsDirs = [
-            { src: path.join(srcDir, 'assets'), dest: path.join(distDir, 'assets') },
-            { src: path.join(srcDir, 'images'), dest: path.join(distDir, 'images') },
-            { src: publicDir, dest: distDir }
-          ];
-          
-          for (const { src, dest } of assetsDirs) {
-            if (fs.existsSync(src)) {
-              copyDir(src, dest);
-              console.log(\`Copied assets from \${src} to \${dest}\`);
-            }
-          }
+          // Create a simple bundle.js that redirects to admin
+          const bundlePath = path.join(assetsDir, 'index.js');
+          fs.writeFileSync(bundlePath, 'console.log("CharterHub loading...");');
+          console.log('Created basic assets');
         }
         
-        // Create a simple bundle.js that redirects to admin
-        const assetsDir = path.join(distDir, 'assets');
-        if (!fs.existsSync(assetsDir)) {
-          fs.mkdirSync(assetsDir, { recursive: true });
-        }
-        
-        const bundlePath = path.join(assetsDir, 'index.js');
-        fs.writeFileSync(bundlePath, 'window.location.href = "/admin";');
-        
-        // Add redirect script to index.html
-        let updatedIndexContent = indexContent;
-        if (!updatedIndexContent.includes('redirect.js')) {
-          updatedIndexContent = updatedIndexContent.replace('</head>', '<script>window.location.href = "/admin";</script></head>');
-          fs.writeFileSync(distIndexPath, updatedIndexContent);
-        }
-        
-        console.log('Created assets and redirect');
         process.exit(0);
       } catch (err) {
         console.error('Error in inline script:', err);
@@ -318,8 +314,8 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0;url=/admin">
   <title>CharterHub</title>
+  <script src="/env-config.js"></script>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -374,17 +370,14 @@ try {
   <main>
     <div class="container">
       <h2>Welcome to CharterHub</h2>
-      <p>Redirecting to admin dashboard...</p>
+      <p>Please proceed to the admin dashboard to manage your charter services.</p>
       <a href="/admin" class="btn">Go to Admin Dashboard</a>
     </div>
   </main>
   <footer>
     <p>&copy; ${new Date().getFullYear()} CharterHub. All rights reserved.</p>
   </footer>
-  <script>
-    // Redirect to admin immediately
-    window.location.href = '/admin';
-  </script>
+  <script src="/redirect.js"></script>
 </body>
 </html>
       `;
@@ -392,19 +385,42 @@ try {
       // Write the HTML file
       fs.writeFileSync(path.join(distDir, 'index.html'), html);
       
-      // Create a simple JS file to handle redirects
-      const js = `
-// Redirect to admin dashboard
-window.location.href = '/admin';
-      `;
-      
-      fs.writeFileSync(path.join(assetsDir, 'index.js'), js);
+      // Create a proper env-config.js file
+      const envConfig = `
+// Environment variables for the frontend
+window.ENV = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {}),
+    null,
+    2
+  )};
 
-      // Create a copy for 404.html to handle any invalid routes
-      fs.writeFileSync(path.join(distDir, '404.html'), html);
+// Make environment variables available through import.meta.env
+window.import = window.import || {};
+window.import.meta = window.import.meta || {};
+window.import.meta.env = ${JSON.stringify(
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .reduce((acc, key) => {
+        acc[key] = process.env[key];
+        return acc;
+      }, {
+        MODE: 'production',
+        PROD: true,
+        DEV: false
+      }),
+    null,
+    2
+  )};
+`;
+      fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
       
       buildSuccess = true;
-      console.log('Created minimal app with admin redirect');
+      console.log('Created minimal app');
     } catch (err3) {
       console.error('Failed to create minimal app:', err3.message);
     }

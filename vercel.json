@@ -1,56 +1,67 @@
 {
-  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --no-fund && npm run vercel-build",
-  "installCommand": "echo 'Using direct npm install in build command'",
+  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.1.1 cors express http-proxy-middleware --no-fund && npm run vercel-build",
+  "installCommand": "cd frontend && npm install --no-fund",
+  "framework": "vite",
   "outputDirectory": "frontend/dist",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" },
+        { "key": "Access-Control-Max-Age", "value": "86400" }
       ]
     },
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.js",
+      "source": "/(.*).js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
       ]
     },
     {
-      "source": "/(.*)\\.css",
+      "source": "/(.*).css",
       "headers": [
         { "key": "Content-Type", "value": "text/css; charset=utf-8" }
       ]
     },
     {
-      "source": "/(.*\\.(png|jpg|jpeg|gif|webp|svg|ico))",
+      "source": "/(.*).png",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Content-Type", "value": "image/png" }
+      ]
+    },
+    {
+      "source": "/(.*).jpg",
+      "headers": [
+        { "key": "Content-Type", "value": "image/jpeg" }
+      ]
+    },
+    {
+      "source": "/(.*).svg",
+      "headers": [
+        { "key": "Content-Type", "value": "image/svg+xml" }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/assets/:path*", "destination": "/assets/:path*" },
-    { "source": "/images/:path*", "destination": "/images/:path*" },
-    { "source": "/static/:path*", "destination": "/static/:path*" },
-    { "source": "^/admin(/.*)?$", "destination": "/index.html" },
-    { "source": "^/$", "destination": "/admin" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/env-config.js", "destination": "/env-config.js" },
+    { "source": "/redirect.js", "destination": "/redirect.js" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/(.*)", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "redirects": [
-    { "source": "/", "destination": "/admin", "permanent": false }
   ],
   "env": {
     "SKIP_TYPESCRIPT_CHECK": "true",
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VITE_ALLOWED_ORIGINS": "https://charter-fb3zp7b99-maurits-s-projects.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-fb3zp7b99-maurits-s-projects.vercel.app"
   }
 } 
