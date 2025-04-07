@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd frontend && node direct-build.cjs",
-  "installCommand": "echo 'Skipping global install - using direct build script'",
+  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --no-fund && npm run vercel-build",
+  "installCommand": "echo 'Using direct npm install in build command'",
   "outputDirectory": "frontend/dist",
   "headers": [
     {
