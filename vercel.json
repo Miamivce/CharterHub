@@ -24,18 +24,28 @@
       ]
     },
     {
-      "source": "/(env-config|redirect)\\.js",
+      "source": "/(.*)\\.css",
       "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        { "key": "Content-Type", "value": "text/css; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/(.*\\.(png|jpg|jpeg|gif|webp|svg|ico))",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
   "rewrites": [
     { "source": "/assets/:path*", "destination": "/assets/:path*" },
-    { "source": "/env-config.js", "destination": "/env-config.js" },
-    { "source": "/redirect.js", "destination": "/redirect.js" },
+    { "source": "/images/:path*", "destination": "/images/:path*" },
+    { "source": "/static/:path*", "destination": "/static/:path*" },
+    { "source": "^/admin(/.*)?$", "destination": "/index.html" },
+    { "source": "^/$", "destination": "/admin" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "redirects": [
+    { "source": "/", "destination": "/admin", "permanent": false }
   ],
   "env": {
     "SKIP_TYPESCRIPT_CHECK": "true",

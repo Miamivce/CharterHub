@@ -20,7 +20,16 @@ module.exports = {
   root: '${process.cwd().replace(/\\/g, '\\\\')}',
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    assetsInlineLimit: 0, // Don't inline any assets as base64
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@headlessui/react', '@heroicons/react']
+        }
+      }
+    }
   },
   resolve: {
     alias: {
@@ -33,10 +42,126 @@ module.exports = {
       .filter(key => key.startsWith('VITE_'))
       .map(key => `'import.meta.env.${key}': JSON.stringify('${process.env[key]}')`)
       .join(',\n    ')}
-  }
+  },
+  plugins: [
+    {
+      name: 'copy-images-plugin',
+      generateBundle() {
+        // This is just a marker for our script to know we need to copy images
+        console.log('COPY_IMAGES_MARKER: Will copy images after build');
+      }
+    }
+  ]
 };
 `;
 fs.writeFileSync(viteConfigPath, minimalConfig);
+
+// Helper function to copy directories recursively
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) return;
+  
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+// Copy image assets from public or src directories
+function copyAssets() {
+  // Copy from public directory if it exists
+  const publicDir = path.join(process.cwd(), 'public');
+  if (fs.existsSync(publicDir)) {
+    console.log('Copying assets from public directory');
+    copyDir(publicDir, distDir);
+  }
+  
+  // Copy images from src directory if it exists
+  const srcImagesDir = path.join(process.cwd(), 'src', 'assets', 'images');
+  if (fs.existsSync(srcImagesDir)) {
+    console.log('Copying images from src/assets/images');
+    const distImagesDir = path.join(distDir, 'assets', 'images');
+    if (!fs.existsSync(distImagesDir)) {
+      fs.mkdirSync(distImagesDir, { recursive: true });
+    }
+    copyDir(srcImagesDir, distImagesDir);
+  }
+  
+  // Copy any other image directories that might exist
+  const srcAssetsDir = path.join(process.cwd(), 'src', 'assets');
+  if (fs.existsSync(srcAssetsDir)) {
+    const entries = fs.readdirSync(srcAssetsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const srcPath = path.join(srcAssetsDir, entry.name);
+        const destPath = path.join(distDir, 'assets', entry.name);
+        copyDir(srcPath, destPath);
+      }
+    }
+  }
+
+  // Also try src/images if it exists
+  const srcImagesDir2 = path.join(process.cwd(), 'src', 'images');
+  if (fs.existsSync(srcImagesDir2)) {
+    console.log('Copying images from src/images');
+    const distImagesDir = path.join(distDir, 'images');
+    if (!fs.existsSync(distImagesDir)) {
+      fs.mkdirSync(distImagesDir, { recursive: true });
+    }
+    copyDir(srcImagesDir2, distImagesDir);
+  }
+
+  // Create redirect script for admin dashboard
+  const redirectJS = `
+// Redirect script to ensure admin dashboard is loaded
+(function() {
+  if (window.location.pathname === '/' || window.location.pathname === '') {
+    window.location.href = '/admin';
+  }
+})();
+`;
+  fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJS);
+  
+  // Add redirect script to index.html
+  const indexPath = path.join(distDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    let indexContent = fs.readFileSync(indexPath, 'utf8');
+    
+    // Only add redirect script if it's not already there
+    if (!indexContent.includes('redirect.js')) {
+      indexContent = indexContent.replace('</head>', '  <script src="/redirect.js"></script>\n</head>');
+      fs.writeFileSync(indexPath, indexContent);
+    }
+
+    // Also create a root redirect file
+    const rootRedirectHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url=/admin">
+  <script>window.location.href = "/admin";</script>
+  <title>Redirecting to Admin</title>
+</head>
+<body>
+  <p>Redirecting to admin dashboard...</p>
+</body>
+</html>
+`;
+    fs.writeFileSync(path.join(distDir, '404.html'), indexContent);
+    fs.writeFileSync(path.join(distDir, 'admin.html'), indexContent);
+  }
+}
 
 // Create a very minimal package.json if needed
 if (!fs.existsSync(path.join(process.cwd(), 'node_modules', 'vite'))) {
@@ -68,6 +193,9 @@ try {
   });
   buildSuccess = true;
   console.log('Build succeeded');
+  
+  // Copy images and other assets
+  copyAssets();
 } catch (err) {
   console.error('Direct build with npx failed:', err.message);
 
@@ -93,20 +221,66 @@ try {
         fs.writeFileSync(distIndexPath, indexContent);
         console.log('Copied index.html to dist');
         
-        // Copy relevant assets
+        // Copy src and public directories if they exist
         const srcDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'src');
+        const publicDir = path.join('${process.cwd().replace(/\\/g, '\\\\')}', 'public');
+        
+        // Copy assets
         if (fs.existsSync(srcDir)) {
-          const assetsDir = path.join(distDir, 'assets');
-          if (!fs.existsSync(assetsDir)) {
-            fs.mkdirSync(assetsDir, { recursive: true });
+          // Copy the src directory assets recursively
+          function copyDir(src, dest) {
+            if (!fs.existsSync(dest)) {
+              fs.mkdirSync(dest, { recursive: true });
+            }
+            
+            const entries = fs.readdirSync(src, { withFileTypes: true });
+            for (const entry of entries) {
+              const srcPath = path.join(src, entry.name);
+              const destPath = path.join(dest, entry.name);
+              
+              if (entry.isDirectory()) {
+                copyDir(srcPath, destPath);
+              } else {
+                // Only copy image and asset files
+                if (entry.name.match(/(\\.(png|jpe?g|gif|svg|webp|ico|ttf|woff|woff2))$/i)) {
+                  fs.copyFileSync(srcPath, destPath);
+                }
+              }
+            }
           }
           
-          // Create a simple bundle.js that redirects to admin
-          const bundlePath = path.join(assetsDir, 'index.js');
-          fs.writeFileSync(bundlePath, 'window.location.href = "/admin";');
-          console.log('Created basic assets');
+          // Copy assets directories
+          const assetsDirs = [
+            { src: path.join(srcDir, 'assets'), dest: path.join(distDir, 'assets') },
+            { src: path.join(srcDir, 'images'), dest: path.join(distDir, 'images') },
+            { src: publicDir, dest: distDir }
+          ];
+          
+          for (const { src, dest } of assetsDirs) {
+            if (fs.existsSync(src)) {
+              copyDir(src, dest);
+              console.log(\`Copied assets from \${src} to \${dest}\`);
+            }
+          }
         }
         
+        // Create a simple bundle.js that redirects to admin
+        const assetsDir = path.join(distDir, 'assets');
+        if (!fs.existsSync(assetsDir)) {
+          fs.mkdirSync(assetsDir, { recursive: true });
+        }
+        
+        const bundlePath = path.join(assetsDir, 'index.js');
+        fs.writeFileSync(bundlePath, 'window.location.href = "/admin";');
+        
+        // Add redirect script to index.html
+        let updatedIndexContent = indexContent;
+        if (!updatedIndexContent.includes('redirect.js')) {
+          updatedIndexContent = updatedIndexContent.replace('</head>', '<script>window.location.href = "/admin";</script></head>');
+          fs.writeFileSync(distIndexPath, updatedIndexContent);
+        }
+        
+        console.log('Created assets and redirect');
         process.exit(0);
       } catch (err) {
         console.error('Error in inline script:', err);
@@ -144,6 +318,7 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0;url=/admin">
   <title>CharterHub</title>
   <style>
     body {
@@ -199,7 +374,7 @@ try {
   <main>
     <div class="container">
       <h2>Welcome to CharterHub</h2>
-      <p>Please proceed to the admin dashboard to manage your charter services.</p>
+      <p>Redirecting to admin dashboard...</p>
       <a href="/admin" class="btn">Go to Admin Dashboard</a>
     </div>
   </main>
@@ -207,10 +382,8 @@ try {
     <p>&copy; ${new Date().getFullYear()} CharterHub. All rights reserved.</p>
   </footer>
   <script>
-    // Redirect to admin after 1 second
-    setTimeout(() => {
-      window.location.href = '/admin';
-    }, 1000);
+    // Redirect to admin immediately
+    window.location.href = '/admin';
   </script>
 </body>
 </html>
@@ -226,9 +399,12 @@ window.location.href = '/admin';
       `;
       
       fs.writeFileSync(path.join(assetsDir, 'index.js'), js);
+
+      // Create a copy for 404.html to handle any invalid routes
+      fs.writeFileSync(path.join(distDir, '404.html'), html);
       
       buildSuccess = true;
-      console.log('Created minimal app');
+      console.log('Created minimal app with admin redirect');
     } catch (err3) {
       console.error('Failed to create minimal app:', err3.message);
     }
