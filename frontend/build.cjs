@@ -18,29 +18,18 @@ process.env.VITE_SKIP_TS_CHECK = 'true';
 process.env.VERCEL_BUILD = 'true';
 
 try {
-  // Install all dependencies first
-  console.log('Installing dependencies...');
-  execSync('npm install --no-fund', { stdio: 'inherit' });
+  // Force installation of Vite and React plugin (specific versions)
+  console.log('Force installing Vite and plugins...');
+  execSync('npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --save-dev --no-fund', { stdio: 'inherit' });
   
-  // Verify that Vite is correctly installed
-  console.log('Verifying Vite installation');
-  try {
-    // Create a simple file to check if vite exists
-    fs.writeFileSync('check-vite.js', 'try { require.resolve("vite"); console.log("Vite found"); } catch(e) { console.log("Vite not found:", e.message); process.exit(1); }');
-    execSync('node check-vite.js', { stdio: 'inherit' });
-  } catch (e) {
-    console.log('Vite not found, installing specific version...');
-    execSync('npm install vite@5.4.14 @vitejs/plugin-react --save-dev --no-fund', { stdio: 'inherit' });
-  }
-  
-  // Create a minimal Vite config file
-  console.log('Creating minimal vite.config.js');
-  fs.writeFileSync('vite.config.js', `
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+  // Create a CommonJS Vite config
+  console.log('Creating CommonJS vite.config.cjs file');
+  fs.writeFileSync('vite.config.cjs', `
+const { defineConfig } = require('vite');
+const react = require('@vitejs/plugin-react');
+const path = require('path');
 
-export default defineConfig({
+module.exports = defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
@@ -55,17 +44,20 @@ export default defineConfig({
 });
 `);
   
-  // Run the build
-  console.log('Running Vite build');
+  // Run the build with explicit path to vite
+  console.log('Running Vite build with explicit config');
   try {
-    // First look for local vite in node_modules
-    const vitePackagePath = path.join(__dirname, 'node_modules', 'vite', 'package.json');
-    if (fs.existsSync(vitePackagePath)) {
-      console.log('Using locally installed Vite');
-      execSync('npx vite build', { stdio: 'inherit' });
+    // Find the local vite executable
+    const viteBinPath = path.join(__dirname, 'node_modules', '.bin', 'vite');
+    
+    if (fs.existsSync(viteBinPath)) {
+      console.log('Using local Vite binary');
+      execSync(`${viteBinPath} build --config vite.config.cjs`, { stdio: 'inherit' });
     } else {
-      console.log('Using global Vite');
-      execSync('npx vite build', { stdio: 'inherit' });
+      console.log('Vite binary not found, using node_modules path');
+      execSync('node ./node_modules/vite/bin/vite.js build --config vite.config.cjs', { 
+        stdio: 'inherit' 
+      });
     }
     
     // Verify the build output
