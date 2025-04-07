@@ -35,6 +35,17 @@ function isPackageInstalled(packageName) {
   }
 }
 
+// Function to check if build generated valid output files
+function isBuildSuccessful() {
+  const distDir = path.join(cwd, 'dist');
+  const indexPath = path.join(distDir, 'index.html');
+  const assetsDir = path.join(distDir, 'assets');
+  
+  return fs.existsSync(indexPath) && 
+         fs.existsSync(assetsDir) && 
+         fs.readdirSync(assetsDir).some(file => file.endsWith('.js'));
+}
+
 // Run dependencies check first
 try {
   console.log('Checking for required dependencies...');
@@ -117,11 +128,10 @@ try {
     });
   }
 
-  // Ensure dist directory exists
+  // Ensure dist directory exists before build
   const distDir = path.join(cwd, 'dist');
   if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
-    fs.writeFileSync(path.join(distDir, 'index.html'), '<html><body><h1>Build placeholder</h1></body></html>');
   }
 
   // Run the build
@@ -138,38 +148,48 @@ try {
 } catch (error) {
   console.error('Build process encountered an error:', error);
 
+  // Check if build actually produced valid output files despite errors
+  if (isBuildSuccessful()) {
+    console.log('Build generated valid output files despite errors - using these instead of creating fallback');
+    process.exit(0);
+  }
+
+  // Only create a fallback if the build truly failed and didn't produce valid files
+  console.log('Creating fallback index.html...');
+  
   // Create a minimal dist directory if build failed to ensure Vercel has something to deploy
   const distDir = path.join(cwd, 'dist');
   if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(distDir, 'index.html'),
-      `<!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>CharterHub</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 2rem; text-align: center; }
-          .error { color: #e53e3e; margin: 2rem 0; }
-          .container { max-width: 600px; margin: 0 auto; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>CharterHub</h1>
-          <div class="error">
-            <p>We're experiencing technical difficulties.</p>
-            <p>Please try again later.</p>
-          </div>
-        </div>
-      </body>
-      </html>`
-    );
-    console.log('Created fallback index.html in dist directory');
   }
   
-  // Exit with non-zero status but don't fail completely
-  process.exit(0);
+  fs.writeFileSync(
+    path.join(distDir, 'index.html'),
+    `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>CharterHub</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 2rem; text-align: center; }
+        .error { color: #e53e3e; margin: 2rem 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>CharterHub</h1>
+        <div class="error">
+          <p>We're experiencing technical difficulties.</p>
+          <p>Please try again later.</p>
+        </div>
+      </div>
+    </body>
+    </html>`
+  );
+  console.log('Created fallback index.html in dist directory');
+  
+  // Exit with non-zero status to indicate build failed
+  process.exit(1);
 } 

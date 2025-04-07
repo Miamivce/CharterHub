@@ -7,16 +7,21 @@ interface LoginCredentials {
   password: string
 }
 
-interface RegisterData extends LoginCredentials {
+interface RegisterData {
+  email: string
+  password: string
   firstName: string
   lastName: string
   phoneNumber?: string
   company?: string
+  role?: 'admin' | 'client'
+  rememberMe?: boolean
 }
 
 interface AuthResponse {
   token: string
   user: User
+  refreshToken?: string
 }
 
 // Mock user data for development
@@ -198,7 +203,7 @@ export const authService = {
         if (mockUser) {
           console.log('Development mode: Authenticated registered user:', mockUser.email)
 
-          // Convert any 'customer' role to 'client'
+          // Ensure roles are standardized to 'admin' or 'client'
           const userRole = mockUser.role === 'admin' ? 'admin' : 'client'
           let user: User
 
@@ -288,101 +293,13 @@ export const authService = {
           token: 'mock-jwt-token',
           user: newUser,
         }
-      } catch (error) {
-        console.error('Development mode: Error registering user:', error)
-        throw new Error('Failed to register user')
-      }
-    }
-
-    // Check for users created during registration (development mode only)
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const MOCK_USERS = JSON.parse(localStorage.getItem('charterhub_mock_users') || '[]')
-        const mockUser = MOCK_USERS.find(
-          (user: any) =>
-            user.email.toLowerCase() === credentials.email.toLowerCase() &&
-            user.password === credentials.password
-        )
-
-        if (mockUser) {
-          console.log('Development mode: Authenticated registered user:', mockUser.email)
-
-          // Find the actual user data from customerService
-          const allCustomers = await customerService.getCustomers()
-          const userRecord = allCustomers.find(
-            (c) => c.id === mockUser.userId || c.email === mockUser.email
-          )
-
-          // If user exists in authentication but not in customer list, add them to customers
-          if (!userRecord && mockUser.userId) {
-            try {
-              // Create a customer record for this authenticated user
-              await customerService.createCustomer({
-                firstName: mockUser.firstName || 'New',
-                lastName: mockUser.lastName || 'User',
-                email: mockUser.email,
-                // Add any other available fields
-              })
-              console.log('Created missing customer record for authenticated user:', mockUser.email)
-            } catch (err) {
-              console.error('Failed to create customer record for authenticated user:', err)
-            }
-          }
-
-          // Retry getting user record after potential creation
-          const updatedCustomers = await customerService.getCustomers()
-          const updatedUserRecord = updatedCustomers.find(
-            (c) => c.id === mockUser.userId || c.email === mockUser.email
-          )
-
-          if (updatedUserRecord) {
-            // Create a properly typed user based on role
-            const isAdmin =
-              updatedUserRecord.role &&
-              typeof updatedUserRecord.role === 'string' &&
-              updatedUserRecord.role.toLowerCase() === 'admin'
-
-            if (isAdmin) {
-              const adminUser: AdminUser = {
-                id: updatedUserRecord.id,
-                email: updatedUserRecord.email,
-                firstName: updatedUserRecord.firstName,
-                lastName: updatedUserRecord.lastName,
-                role: 'admin',
-                permissions: ['all'],
-              }
-
-              return {
-                token: 'mock-jwt-token',
-                user: adminUser,
-              }
-            } else {
-              const clientUser: ClientUser = {
-                id: updatedUserRecord.id,
-                email: updatedUserRecord.email,
-                firstName: updatedUserRecord.firstName,
-                lastName: updatedUserRecord.lastName,
-                role: 'client',
-                phone: updatedUserRecord.phone,
-                company: updatedUserRecord.company,
-                country: updatedUserRecord.country,
-                address: updatedUserRecord.address,
-                notes: updatedUserRecord.notes,
-              }
-
-              return {
-                token: 'mock-jwt-token',
-                user: clientUser,
-              }
-            }
-          }
-        }
       } catch (err) {
-        console.error('Error checking mock users:', err)
+        console.error('Error during registration:', err)
+        throw new Error('Registration failed. Please try again.')
       }
     }
 
-    throw new Error('Invalid credentials')
+    throw new Error('Registration is not supported in production')
   },
 
   async forgotPassword(email: string): Promise<void> {
@@ -533,5 +450,31 @@ export const authService = {
   async validateToken(token: string): Promise<boolean> {
     await delay(100)
     return token === 'mock-jwt-token'
+  },
+
+  async getCurrentUser(): Promise<User> {
+    // For development environment only
+    if (process.env.NODE_ENV === 'development') {
+      // Return a mock user for development
+      const adminUser: AdminUser = {
+        id: 'mock-admin-1',
+        email: 'admin@example.com',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        permissions: ['all'],
+      }
+
+      return adminUser
+    }
+
+    throw new Error('Not implemented')
+  },
+
+  async refreshTokens(): Promise<{ token: string; refreshToken: string }> {
+    return {
+      token: 'mock-jwt-token',
+      refreshToken: 'mock-refresh-token',
+    }
   },
 }

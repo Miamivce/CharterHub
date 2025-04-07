@@ -9,7 +9,7 @@ export interface User {
   lastName: string
   phoneNumber?: string
   company?: string
-  role: string
+  role: 'admin' | 'client'
   verified: boolean
   createdAt?: string
   updatedAt?: string

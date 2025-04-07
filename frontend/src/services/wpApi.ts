@@ -1671,7 +1671,10 @@ const wpApi = {
     }
   },
 
-  // Test API methods for development and testing purposes
+  /**
+   * Test authentication methods
+   * @returns Object with test results
+   */
   async testAuthMethods() {
     console.log('Testing auth methods...')
     try {

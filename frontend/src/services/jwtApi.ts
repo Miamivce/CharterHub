@@ -1149,21 +1149,24 @@ const jwtApi = {
     }
   },
 
-  // Test method for CORS testing
+  /**
+   * Test CORS configuration
+   * @returns Object with success status and message
+   */
   async testCors(): Promise<{ success: boolean; message: string }> {
     try {
-      const client = createApiClient()
-      const response = await client.get('/test/cors')
+      const client = createApiClient();
+      const response = await client.get('/api/test-cors');
       return {
         success: true,
         message: response.data.message || 'CORS test successful'
-      }
+      };
     } catch (error) {
-      console.error('[jwtApi] CORS test failed:', error)
+      console.error('[jwtApi] CORS test failed:', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error'
-      }
+      };
     }
   }
 }

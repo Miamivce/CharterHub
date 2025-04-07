@@ -11,19 +11,19 @@ export interface BaseUser {
   lastName: string
   displayName?: string
   username?: string
-  role: 'admin' | 'administrator' | 'client' | 'customer'
+  role: 'admin' | 'client'
   verified?: boolean
   permissions?: string[]
 }
 
 export interface AdminUser extends BaseUser {
-  role: 'admin' | 'administrator'
+  role: 'admin'
   phone?: string
   permissions?: string[]
 }
 
 export interface ClientUser extends BaseUser {
-  role: 'client' | 'customer'
+  role: 'client'
   phone?: string
   company?: string
   country?: string
@@ -40,7 +40,7 @@ export interface UserRegisterData {
   lastName: string
   phoneNumber?: string
   company?: string
-  role?: 'admin' | 'client' | 'charter_client' | 'customer'
+  role?: 'admin' | 'client'
   rememberMe?: boolean
 }
 
@@ -56,7 +56,7 @@ export interface UserUpdateData {
   email?: string
   phoneNumber?: string
   company?: string
-  role?: 'admin' | 'client' | 'charter_client' | 'customer'
+  role?: 'admin' | 'client'
 }
 
 export interface Yacht {
