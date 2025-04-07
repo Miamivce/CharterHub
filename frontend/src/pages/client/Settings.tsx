@@ -1,6 +1,6 @@
 import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
 import { Card } from '@/components/shared'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 
 export function Settings() {

@@ -1,6 +1,6 @@
 import api from './api'
 import { User, AdminUser, ClientUser } from '@/contexts/types'
-import { customerService, CreateCustomerDTO } from './customerService'
+import { customerService } from './customerService'
 
 interface LoginCredentials {
   email: string
@@ -25,7 +25,7 @@ const MOCK_USER: User = {
   email: 'demo@charterhub.com',
   firstName: 'Demo',
   lastName: 'User',
-  role: 'customer',
+  role: 'client',
 }
 
 // Mock credentials for development
@@ -40,7 +40,7 @@ const TEST_USER = {
   email: 'test1@me.com',
   firstName: 'Test',
   lastName: 'User',
-  role: 'customer',
+  role: 'client',
   password: 'password123',
 }
 
@@ -127,7 +127,7 @@ export const authService = {
           email: TEST_USER.email,
           firstName: TEST_USER.firstName,
           lastName: TEST_USER.lastName,
-          role: 'customer',
+          role: 'client',
           phone: (TEST_USER as any).phone,
           company: (TEST_USER as any).company,
         }
@@ -152,7 +152,7 @@ export const authService = {
         console.log('Found matching user in dev_users:', devUser.email)
 
         // Create the correct user type based on role
-        const userRole = devUser.role === 'admin' ? 'admin' : 'customer'
+        const userRole = devUser.role === 'admin' ? 'admin' : 'client'
         let user: User
 
         if (userRole === 'admin') {
@@ -170,7 +170,7 @@ export const authService = {
             email: devUser.email,
             firstName: devUser.firstName,
             lastName: devUser.lastName,
-            role: 'customer',
+            role: 'client',
             phone: devUser.phone || devUser.phoneNumber,
             company: devUser.company,
           }
@@ -253,7 +253,7 @@ export const authService = {
                 email: updatedUserRecord.email,
                 firstName: updatedUserRecord.firstName,
                 lastName: updatedUserRecord.lastName,
-                role: 'customer',
+                role: 'client',
                 phone: updatedUserRecord.phone,
                 company: updatedUserRecord.company,
                 country: updatedUserRecord.country,
@@ -287,7 +287,7 @@ export const authService = {
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
-      role: 'customer',
+      role: 'client',
     }
 
     // Save in localStorage for development (this is mock data - never store real credentials)
@@ -404,8 +404,8 @@ export const authService = {
         console.log('Updated user_data in storage')
       }
 
-      // If it's a customer role, also sync with customer service
-      if (updatedUser.role === 'customer') {
+      // If it's a client role, also sync with customer service
+      if (updatedUser.role === 'client') {
         try {
           // Find the correct ID format used in the customer service for this user
           const customers = await customerService.getCustomers()
@@ -462,7 +462,7 @@ export const authService = {
       const updatedUser: User = {
         ...MOCK_USER,
         ...data,
-        role: 'customer',
+        role: 'client',
       }
       return updatedUser
     }

@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/utils/wordpressErrors'
 import { Spinner } from '@/components/ui/Spinner'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 export default function WordPressTestPage() {
   const {
@@ -81,9 +81,9 @@ export default function WordPressTestPage() {
                       <p>
                         <span className="font-medium">Cabins:</span> {yacht.specifications.cabins}
                       </p>
-                      <p>
-                        <span className="font-medium">Guests:</span> {yacht.specifications.guests}
-                      </p>
+                      <div className="flex items-center justify-between my-1">
+                        <span className="font-medium">Guests:</span> {yacht.specifications.capacity}
+                      </div>
                       <p>
                         <span className="font-medium">Crew:</span> {yacht.specifications.crew}
                       </p>

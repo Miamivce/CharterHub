@@ -36,29 +36,29 @@ export function BookingProvider({ children }: ContextProviderProps) {
 
   // Helper function to get booking by ID
   const getBookingById = useCallback(
-    (id: string) => {
+    (id: string): BookingWithDetails | undefined => {
       if (isLoading) return undefined;
       
       // First try to find it in the cached bookings
       const cachedBooking = bookings.find((booking) => booking.id === id);
       if (cachedBooking) return cachedBooking;
       
-      // If not found in cache, fetch it directly
+      // Fetch from API separately and return the booking via queryClient data
       console.log('Booking not found in cache, fetching directly:', id);
-      return bookingService.getBooking(id).then(booking => {
+      bookingService.getBooking(id).then(booking => {
         if (booking) {
           // Add to query cache so it's available for future lookups
           queryClient.setQueryData(['bookings', id], booking);
-          return booking;
         }
-        return undefined;
       }).catch(error => {
         console.error('Error fetching booking by ID:', error);
-        return undefined;
       });
+      
+      // Return undefined until data is available
+      return undefined;
     },
     [bookings, isLoading, queryClient]
-  )
+  );
 
   // Create booking mutation
   const createMutation = useMutation({
@@ -70,7 +70,7 @@ export function BookingProvider({ children }: ContextProviderProps) {
         // Get the complete customer data with correct notes handling
         const mainChartererData = {
           ...bookingData.mainCharterer,
-          role: 'customer',
+          role: 'client',
           selfRegistered: false,
           registrationDate: new Date().toISOString(),
         }
@@ -124,7 +124,7 @@ export function BookingProvider({ children }: ContextProviderProps) {
               // Create a complete customer record for each guest
               const guestData = {
                 ...guest,
-                role: 'customer',
+                role: 'client',
                 selfRegistered: false,
                 registrationDate: new Date().toISOString(),
               }
@@ -162,8 +162,28 @@ export function BookingProvider({ children }: ContextProviderProps) {
       }
 
       console.log('All guests added, now creating booking')
+      // Filter out invalid guests
+      const guestList = bookingData.guestList 
+        ? bookingData.guestList.filter(guest => 
+            guest.firstName.trim() !== '' || 
+            guest.lastName.trim() !== '' || 
+            guest.email.trim() !== ''
+          ).map(guest => ({
+            ...guest,
+            role: 'client' // Ensure all guests have the correct role
+          }))
+        : [];
+
+      // Create the booking DTO with the required shape
+      const createBookingDTO: CreateBookingDTO = {
+        ...bookingData,
+        notes: bookingData.notes || '',
+        status: bookingData.status || 'pending',
+        guestList,
+      };
+
       // Now create the booking
-      return bookingService.createBooking(bookingData)
+      return bookingService.createBooking(createBookingDTO)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
@@ -198,7 +218,7 @@ export function BookingProvider({ children }: ContextProviderProps) {
               // Create a complete customer record for each guest
               const guestData = {
                 ...guest,
-                role: 'customer',
+                role: 'client',
                 selfRegistered: false,
                 registrationDate: new Date().toISOString(),
               }

@@ -28,6 +28,7 @@ interface DocumentFormProps {
   onCancel: () => void
   initialValues?: Partial<DocumentFormValues>
   isBookingDocument?: boolean
+  disableSearch?: boolean
 }
 
 const DOCUMENT_TYPES: { value: DocumentType; label: string; icon: typeof DocumentIcon }[] = [
@@ -53,7 +54,7 @@ const DOCUMENT_CATEGORIES: { value: DocumentCategory; label: string }[] = [
 
 type CaptainDetailsField = keyof NonNullable<NonNullable<DocumentMetadata>['captainDetails']>
 
-export function DocumentForm({ onSubmit, onCancel, initialValues, isBookingDocument = false }: DocumentFormProps) {
+export function DocumentForm({ onSubmit, onCancel, initialValues, isBookingDocument = false, disableSearch = false }: DocumentFormProps) {
   const { documents } = useDocument()
   const { user } = useJWTAuth()
   const [values, setValues] = useState<DocumentFormValues>({

@@ -13,6 +13,7 @@ export interface BaseUser {
   username?: string
   role: 'admin' | 'administrator' | 'client'
   verified?: boolean
+  permissions?: string[]
 }
 
 export interface AdminUser extends BaseUser {
@@ -205,6 +206,7 @@ export interface BookingWithDetails extends Booking {
       length: string
       capacity: number
       crew: number
+      guests?: number
     }
     pricing: {
       basePrice: number
@@ -223,7 +225,20 @@ export interface BookingWithDetails extends Booking {
   }
 }
 
-export interface CustomerWithStats extends ClientUser {
+export interface CustomerWithStats {
+  id: string | number
+  email: string
+  firstName: string
+  lastName: string
+  displayName?: string
+  username?: string
+  role: 'client'
+  verified?: boolean
+  phone?: string
+  company?: string
+  country?: string
+  address?: string
+  notes?: string
   bookingsCount: number
   totalSpent: number
   lastBooking?: string

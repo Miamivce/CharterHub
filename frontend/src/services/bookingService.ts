@@ -28,7 +28,14 @@ export interface CreateBookingDTO {
   startDate: string
   endDate: string
   mainCharterer: any
-  // Add other properties as needed
+  guestList?: { id?: string; firstName: string; lastName: string; email: string; notes?: string; role?: string }[]
+  guests?: number
+  destination?: { id: string; name: string }
+  totalPrice?: number
+  specialRequests?: string
+  notes?: string
+  status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  documents?: any[]
 }
 
 export interface UpdateBookingDTO {
