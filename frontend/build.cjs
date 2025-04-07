@@ -1,7 +1,7 @@
 // CommonJS build script for Vercel deployment
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, exec } = require('child_process');
 
 console.log('Starting Vercel build process with CommonJS script');
 
@@ -44,39 +44,79 @@ module.exports = defineConfig({
 });
 `);
   
-  // Run the build with explicit path to vite
-  console.log('Running Vite build with explicit config');
+  // Create a simple index.html in dist as a fallback
+  const defaultHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CharterHub</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
+`;
+
+  fs.writeFileSync(path.join(distDir, 'index.html'), defaultHtml);
+  console.log('Created fallback index.html');
+  
+  // Verify where vite is installed and what's available
+  console.log('Checking for Vite installation details...');
   try {
-    // Find the local vite executable
-    const viteBinPath = path.join(__dirname, 'node_modules', '.bin', 'vite');
-    
-    if (fs.existsSync(viteBinPath)) {
-      console.log('Using local Vite binary');
-      execSync(`${viteBinPath} build --config vite.config.cjs`, { stdio: 'inherit' });
-    } else {
-      console.log('Vite binary not found, using node_modules path');
-      execSync('node ./node_modules/vite/bin/vite.js build --config vite.config.cjs', { 
-        stdio: 'inherit' 
-      });
+    execSync('ls -la node_modules/.bin/', { stdio: 'inherit' });
+    execSync('ls -la node_modules/vite/', { stdio: 'inherit' });
+  } catch (e) {
+    console.log('Unable to list Vite directories, but continuing...');
+  }
+  
+  // Try different ways to run Vite build
+  console.log('Running Vite build with multiple fallbacks');
+  
+  const buildMethods = [
+    'npx vite build --config vite.config.cjs',
+    'node node_modules/vite/bin/vite.js build --config vite.config.cjs',
+    'node ./node_modules/.bin/vite build --config vite.config.cjs', 
+    'node_modules/.bin/vite build --config vite.config.cjs',
+    'npm exec vite build -- --config vite.config.cjs',
+    // Direct use of package
+    'npx -p vite@5.4.14 vite build --config vite.config.cjs'
+  ];
+  
+  let buildSuccess = false;
+  
+  for (const method of buildMethods) {
+    try {
+      console.log(`Trying build method: ${method}`);
+      execSync(method, { stdio: 'inherit' });
+      console.log(`Build succeeded with: ${method}`);
+      buildSuccess = true;
+      break;
+    } catch (err) {
+      console.log(`Method failed: ${method}`);
+      console.log(err.message);
     }
-    
-    // Verify the build output
-    const indexHtmlPath = path.join(distDir, 'index.html');
-    if (fs.existsSync(indexHtmlPath)) {
-      console.log('Build completed successfully');
-      process.exit(0);
-    } else {
-      throw new Error('index.html not found in dist directory');
-    }
-  } catch (buildError) {
-    console.error('Build failed:', buildError.message);
-    throw buildError;
+  }
+  
+  if (!buildSuccess) {
+    throw new Error('All build methods failed');
+  }
+  
+  // Verify the build output
+  const indexHtmlPath = path.join(distDir, 'index.html');
+  if (fs.existsSync(indexHtmlPath)) {
+    console.log('Build completed successfully');
+    process.exit(0);
+  } else {
+    throw new Error('index.html not found in dist directory');
   }
 } catch (error) {
   console.error('Error during build process:', error.message);
   
   // Create fallback index.html as a last resort
-  console.log('Creating fallback index.html');
+  console.log('Creating styled fallback index.html');
   const fallbackHtml = `
 <!DOCTYPE html>
 <html lang="en">

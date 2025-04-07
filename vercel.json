@@ -1,9 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --save-dev && node build.cjs",
-  "installCommand": "echo Skipping global install step",
+  "buildCommand": "cd frontend && node build.cjs",
+  "installCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.3.4 --no-fund",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
-  "devCommand": "npm run dev",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
