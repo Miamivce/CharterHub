@@ -6,6 +6,12 @@
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/env-config.js", "dest": "/env-config.js" },
+    { "src": "/redirect.js", "dest": "/redirect.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
   "env": {
     "SKIP_TYPESCRIPT_CHECK": "true",
     "VITE_SKIP_TS_CHECK": "true",
