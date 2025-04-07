@@ -82,7 +82,7 @@
     "dev": "vite",
     "start": "vite --mode development --force",
     "build": "tsc && vite build",
-    "preview": "vite preview",
+    "vercel-build": "cp .env.production .env && npm run build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "test": "jest",
