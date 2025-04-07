@@ -6,7 +6,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://charterhub-backend.vercel.app/api/$1"
+      "destination": "https://charterhub-api.onrender.com/api/$1"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "https://charterhub-api.onrender.com/auth/$1"
     }
   ]
 } 

@@ -1,7 +1,7 @@
 {
   "build": {
     "env": {
-      "VITE_API_BASE_URL": "@vite_api_base_url"
+      "VITE_API_BASE_URL": "https://charterhub-api.onrender.com"
     }
   },
   "routes": [
