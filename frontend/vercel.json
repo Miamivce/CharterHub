@@ -1,60 +1,31 @@
 {
-  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.1.1 cors express http-proxy-middleware --no-fund && npm run vercel-build",
-  "installCommand": "cd frontend && npm install --no-fund",
-  "framework": "vite",
-  "outputDirectory": "frontend/dist",
-  "trailingSlash": false,
-  "cleanUrls": true,
-  "headers": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(env-config|redirect)\\.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
+      "src": "frontend/server.js",
+      "use": "@vercel/node"
     },
     {
-      "source": "/(.*)\\.(js)$",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(css)$",
-      "headers": [
-        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(png|jpg|jpeg|svg|gif)$",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" }
-      ]
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/env-config.js", "dest": "/env-config.js", "continue": true },
-    { "src": "/redirect.js", "dest": "/redirect.js", "continue": true },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/(.*)\\.js", "dest": "/$1.js" },
-    { "src": "/(.*)\\.css", "dest": "/$1.css" },
-    { "src": "/(.*)\\.png", "dest": "/$1.png" },
-    { "src": "/(.*)\\.jpg", "dest": "/$1.jpg" },
-    { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/env-config.js",
+      "dest": "frontend/server.js"
+    },
+    {
+      "src": "/redirect.js",
+      "dest": "frontend/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/server.js"
+    }
   ],
   "env": {
     "SKIP_TYPESCRIPT_CHECK": "true",

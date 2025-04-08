@@ -19,8 +19,7 @@ const publicDir = path.join(process.cwd(), 'public');
 // Function to create env-config.js
 function createEnvConfigJs() {
   console.log('Creating env-config.js directly');
-  const envConfig = `
-// Environment variables for CharterHub frontend
+  const envConfig = `// Environment variables for CharterHub frontend
 window.ENV = {
   VITE_API_URL: "https://charterhub-api.onrender.com",
   VITE_PHP_API_URL: "https://charterhub-api.onrender.com",
@@ -43,16 +42,14 @@ window.import.meta.env = {
   DEV: false
 };
 
-console.log('Environment config loaded successfully');
-`;
+console.log('Environment config loaded successfully');`;
   return envConfig;
 }
 
 // Function to create redirect.js
 function createRedirectJs() {
   console.log('Creating redirect.js directly');
-  const redirectJs = `
-// Redirect script for CharterHub
+  const redirectJs = `// Redirect script for CharterHub
 (function() {
   // Only redirect from root path to /admin for admin domain
   const hostname = window.location.hostname;
@@ -62,8 +59,7 @@ function createRedirectJs() {
     console.log('Redirecting to admin dashboard');
     window.location.href = '/admin';
   }
-})();
-`;
+})();`;
   return redirectJs;
 }
 
@@ -71,44 +67,64 @@ function createRedirectJs() {
 const envConfig = createEnvConfigJs();
 const redirectJs = createRedirectJs();
 
-// Write these files both as HTML files (for direct access) and as JS files
+// Make sure dist directory exists
+if (!fs.existsSync(distDir)) {
+  console.log('Creating dist directory');
+  fs.mkdirSync(distDir, { recursive: true });
+}
+
+// Write these files directly as plain JS (not wrapped in HTML)
 fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
 fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
 
-// Also create HTML files that serve the same content but with JavaScript MIME type
-const envConfigHtml = `<!DOCTYPE html>
-<html>
+// Create a public directory in dist to ensure static files are accessible
+const distPublicDir = path.join(distDir, 'public');
+if (!fs.existsSync(distPublicDir)) {
+  fs.mkdirSync(distPublicDir, { recursive: true });
+}
+
+// Also duplicate these files in public directory for maximum compatibility
+fs.writeFileSync(path.join(distPublicDir, 'env-config.js'), envConfig);
+fs.writeFileSync(path.join(distPublicDir, 'redirect.js'), redirectJs);
+
+// Create copies at root level as well
+if (fs.existsSync(path.join(process.cwd(), 'public'))) {
+  fs.writeFileSync(path.join(process.cwd(), 'public', 'env-config.js'), envConfig);
+  fs.writeFileSync(path.join(process.cwd(), 'public', 'redirect.js'), redirectJs);
+}
+
+console.log('Created JavaScript files with proper content type');
+
+// Create a static HTML file with the scripts properly embedded
+const staticHtml = `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="application/javascript; charset=utf-8">
-  <title>Environment Config</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CharterHub</title>
+  <script src="/env-config.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #0066cc; }
+  </style>
 </head>
 <body>
-<script>
-${envConfig}
-</script>
+  <div class="container">
+    <h1>CharterHub</h1>
+    <p>Loading application...</p>
+  </div>
+  <script src="/redirect.js"></script>
+  <script>
+    window.location.href = '/';
+  </script>
 </body>
 </html>`;
 
-const redirectHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="application/javascript; charset=utf-8">
-  <title>Redirect Script</title>
-</head>
-<body>
-<script>
-${redirectJs}
-</script>
-</body>
-</html>`;
+fs.writeFileSync(path.join(distDir, 'static.html'), staticHtml);
 
-// Write the HTML versions as fallbacks
-fs.writeFileSync(path.join(distDir, 'env-config.html'), envConfigHtml);
-fs.writeFileSync(path.join(distDir, 'redirect.html'), redirectHtml);
-
-console.log('Created critical JavaScript files with proper content types');
+// Skip the HTML version creation that was causing the issues
+console.log('Skipping problematic HTML wrappers for JavaScript files');
 
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');
