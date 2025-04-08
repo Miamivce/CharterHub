@@ -1,87 +1,46 @@
-// Simple service worker for CharterHub SPA
+// Minimal service worker for CharterHub SPA
 const CACHE_NAME = 'charterhub-cache-v1';
 
-// On install, skip waiting to activate immediately
+// Skip waiting on install
 self.addEventListener('install', event => {
   console.log('Service worker installed');
   event.waitUntil(self.skipWaiting());
 });
 
-// On activate, clear any problematic caches
+// Clear old caches on activate
 self.addEventListener('activate', event => {
   console.log('Service worker activated');
   
-  // Clear any old caches that might be causing issues
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames
           .filter(cacheName => cacheName.startsWith('charterhub-') && cacheName !== CACHE_NAME)
-          .map(cacheName => {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          })
+          .map(cacheName => caches.delete(cacheName))
       );
     }).then(() => self.clients.claim())
   );
 });
 
-// Network-first strategy for all requests
-// This ensures users always get the latest content unless offline
+// Only handle navigation requests to provide fallback for SPA routes
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-  
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-  
-  // Special handling for HTML navigation requests
-  const isHTMLRequest = event.request.mode === 'navigate' || 
-                        (event.request.method === 'GET' && 
-                         event.request.headers.get('accept').includes('text/html'));
-  
-  if (isHTMLRequest) {
-    // For HTML requests, always try network first, then fall back to index.html in cache
+  // Only intercept same-origin navigation requests (for SPA routing)
+  if (event.request.mode === 'navigate' && 
+      event.request.url.startsWith(self.location.origin)) {
+    
+    // Use a network-first strategy just for navigation
     event.respondWith(
       fetch(event.request)
-        .then(response => {
-          // Cache the successful response
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        })
         .catch(() => {
-          // If network fails, return index.html from cache or network
-          return caches.match('/index.html') || fetch('/index.html');
+          // If network fails, return index.html
+          return caches.match('/index.html')
+            .then(response => {
+              return response || fetch('/index.html');
+            });
         })
     );
-    return;
   }
-  
-  // For assets, try network first, then cache
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Cache the asset if it's a successful response
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // If network fails, try to get it from the cache
-        return caches.match(event.request);
-      })
-  );
+  // Let the browser handle all other requests normally
 });
 
 // Handle message events (like skip waiting)

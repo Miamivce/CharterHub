@@ -22,25 +22,10 @@
     })();
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+  <!-- This will be replaced by the Vite build output -->
 </head>
-<body class="bg-gray-100">
-  <div id="root">
-    <div class="min-h-screen flex items-center justify-center">
-      <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-        <h1 class="text-2xl font-bold text-blue-600 mb-4">CharterHub</h1>
-        <div id="loading" class="my-4">
-          <p class="text-gray-700">Loading application...</p>
-          <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
-            <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 75%"></div>
-          </div>
-        </div>
-        <a href="/" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-          Go to Dashboard
-        </a>
-      </div>
-    </div>
-  </div>
+<body>
+  <div id="root"></div>
   <script src="/redirect.js"></script>
-  <!-- Don't reference source files directly in production -->
 </body>
 </html> 

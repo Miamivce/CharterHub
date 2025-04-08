@@ -38,8 +38,6 @@
   ],
   "routes": [
     { "handle": "filesystem" },
-    { "src": "^/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "^/images/(.*)", "dest": "/images/$1" },
     { "src": "^/env-config.js", "dest": "/env-config.js" },
     { "src": "^/redirect.js", "dest": "/redirect.js" },
     { "src": "^/service-worker.js", "dest": "/service-worker.js" },

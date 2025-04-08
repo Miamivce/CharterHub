@@ -123,7 +123,6 @@ try {
       'test.html',
       'vite.svg',
       'service-worker.js',
-      'index.html', // Copy our fallback index.html
       'favicon.ico'
     ];
     
@@ -157,10 +156,10 @@ try {
     fs.writeFileSync(viteSvgPath, fallbackSvg);
   }
 
-  // Update the Vite-generated index.html if it exists
+  // Update the Vite-generated index.html (but do not replace it)
   const viteGeneratedIndexPath = path.join(distDir, 'index.html');
   if (fs.existsSync(viteGeneratedIndexPath)) {
-    console.log('Found Vite-generated index.html, updating...');
+    console.log('Found Vite-generated index.html, updating scripts...');
     
     let indexContent = fs.readFileSync(viteGeneratedIndexPath, 'utf8');
     let updated = false;
@@ -213,62 +212,8 @@ try {
       console.log('index.html already has the required scripts');
     }
   } else {
-    // If Vite didn't generate an index.html, copy our public one
-    console.log('No Vite-generated index.html found, copying from public');
-    const publicIndexPath = path.join(publicDir, 'index.html');
-    
-    if (fs.existsSync(publicIndexPath)) {
-      fs.copyFileSync(publicIndexPath, viteGeneratedIndexPath);
-      console.log('Copied index.html from public directory');
-    } else {
-      // Create a fallback index.html if needed
-      console.log('Creating fallback index.html');
-      const html = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <script src="/env-config.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Charter Hub</title>
-    <script>
-      // Handle redirects from 404.html
-      (function() {
-        // Parse the URL parameters
-        var params = new URLSearchParams(window.location.search);
-        var redirectPath = params.get('redirect');
-        
-        // If we have a redirect parameter, navigate to that path
-        if (redirectPath) {
-          // Clean the URL by removing the redirect parameter
-          history.replaceState(null, null, redirectPath);
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-  </head>
-  <body class="bg-gray-100">
-    <div id="root">
-      <div class="min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-          <h1 class="text-2xl font-bold text-blue-600 mb-4">CharterHub</h1>
-          <div id="loading" class="my-4">
-            <p class="text-gray-700">Loading application...</p>
-            <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
-              <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 75%"></div>
-            </div>
-          </div>
-          <a href="/" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-            Go to Dashboard
-          </a>
-        </div>
-      </div>
-    </div>
-    <script src="/redirect.js"></script>
-  </body>
-</html>`;
-      fs.writeFileSync(viteGeneratedIndexPath, html);
-      console.log('Created fallback index.html');
-    }
+    console.error('Warning: No Vite-generated index.html found. Vite build may have failed.');
+    console.error('Ensure the build process is working correctly.');
   }
 
   console.log('Build completed successfully');
