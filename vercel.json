@@ -3,19 +3,23 @@
   "installCommand": "cd frontend && npm install --no-fund",
   "framework": "vite",
   "outputDirectory": "frontend/dist",
+  "trailingSlash": false,
+  "cleanUrls": true,
   "headers": [
-    {
-      "source": "/(.*)\\.(js)$",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
-      ]
-    },
     {
       "source": "/(env-config|redirect)\\.js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(js)$",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     },
     {
@@ -42,8 +46,8 @@
   ],
   "routes": [
     { "handle": "filesystem" },
-    { "src": "/env-config.js", "dest": "/env-config.js" },
-    { "src": "/redirect.js", "dest": "/redirect.js" },
+    { "src": "/env-config.js", "dest": "/env-config.js", "continue": true },
+    { "src": "/redirect.js", "dest": "/redirect.js", "continue": true },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*)\\.js", "dest": "/$1.js" },
     { "src": "/(.*)\\.css", "dest": "/$1.css" },
@@ -57,7 +61,7 @@
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
     "NODE_ENV": "production",
-    "VITE_ALLOWED_ORIGINS": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app,https://app.yachtstory.be",
-    "VITE_FRONTEND_URL": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app"
+    "VITE_ALLOWED_ORIGINS": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app,https://charter-jx9g0obll-maurits-s-projects.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-jx9g0obll-maurits-s-projects.vercel.app"
   }
 } 

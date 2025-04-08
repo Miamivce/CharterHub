@@ -12,11 +12,51 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
-// Create standalone JavaScript files first, before any potential build failures
-console.log('Creating critical JavaScript files');
+// Copy static files from public directory to ensure they're available directly
+console.log('Copying critical static files from public directory');
+const publicDir = path.join(process.cwd(), 'public');
 
-// Create a proper redirect.js file as an independent file with correct JavaScript syntax
-const redirectJs = `
+// Check if public/env-config.js exists and copy it
+const publicEnvConfig = path.join(publicDir, 'env-config.js');
+if (fs.existsSync(publicEnvConfig)) {
+  fs.copyFileSync(publicEnvConfig, path.join(distDir, 'env-config.js'));
+  console.log('Copied env-config.js from public directory');
+} else {
+  // Create env-config.js directly if not found in public
+  console.log('Creating env-config.js directly');
+  const envConfig = `
+// Environment variables for CharterHub frontend
+window.ENV = {
+  VITE_API_URL: "https://charterhub-api.onrender.com",
+  VITE_PHP_API_URL: "https://charterhub-api.onrender.com"
+};
+
+// Make environment variables available through import.meta.env
+window.import = window.import || {};
+window.import.meta = window.import.meta || {};
+window.import.meta.env = {
+  VITE_API_URL: "https://charterhub-api.onrender.com",
+  VITE_PHP_API_URL: "https://charterhub-api.onrender.com",
+  MODE: 'production',
+  PROD: true,
+  DEV: false
+};
+
+console.log('Environment config loaded successfully');
+`;
+  fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+  console.log('Created env-config.js successfully');
+}
+
+// Check if public/redirect.js exists and copy it
+const publicRedirect = path.join(publicDir, 'redirect.js');
+if (fs.existsSync(publicRedirect)) {
+  fs.copyFileSync(publicRedirect, path.join(distDir, 'redirect.js'));
+  console.log('Copied redirect.js from public directory');
+} else {
+  // Create redirect.js directly if not found in public
+  console.log('Creating redirect.js directly');
+  const redirectJs = `
 // Redirect script for CharterHub
 (function() {
   // Only redirect from root path to /admin
@@ -26,45 +66,9 @@ const redirectJs = `
   }
 })();
 `;
-fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
-console.log('Created redirect.js successfully');
-
-// Create env-config.js to ensure environment variables are available
-const envConfig = `
-// Environment variables for CharterHub frontend
-window.ENV = ${JSON.stringify(
-  Object.keys(process.env)
-    .filter(key => key.startsWith('VITE_'))
-    .reduce((acc, key) => {
-      acc[key] = process.env[key];
-      return acc;
-    }, {}),
-  null,
-  2
-)};
-
-// Make environment variables available through import.meta.env
-window.import = window.import || {};
-window.import.meta = window.import.meta || {};
-window.import.meta.env = ${JSON.stringify(
-  Object.keys(process.env)
-    .filter(key => key.startsWith('VITE_'))
-    .reduce((acc, key) => {
-      acc[key] = process.env[key];
-      return acc;
-    }, {
-      MODE: 'production',
-      PROD: true,
-      DEV: false
-    }),
-  null,
-  2
-)};
-
-console.log('Environment config loaded successfully');
-`;
-fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-console.log('Created env-config.js successfully');
+  fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
+  console.log('Created redirect.js successfully');
+}
 
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');
@@ -172,6 +176,10 @@ try {
   });
   buildSuccess = true;
   console.log('Build succeeded');
+  
+  // Make sure our critical files are still present
+  fs.copyFileSync(path.join(distDir, 'env-config.js'), path.join(distDir, 'env-config.js'));
+  fs.copyFileSync(path.join(distDir, 'redirect.js'), path.join(distDir, 'redirect.js'));
   
   // Make sure index.html includes the env-config.js and redirect.js scripts
   const indexPath = path.join(distDir, 'index.html');

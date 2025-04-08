@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CharterHub Test Page</title>
+  <script src="/env-config.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: #f8f9fa;
+    }
+    header {
+      background: #0066cc;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .results {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #f1f3f5;
+      border-radius: 4px;
+      text-align: left;
+    }
+    pre {
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CharterHub Test Page</h1>
+  </header>
+  <main>
+    <div class="container">
+      <h2>JavaScript Loading Test</h2>
+      <p>This page tests if JavaScript files are loading correctly.</p>
+      
+      <div class="results">
+        <h3>Environment Variables</h3>
+        <pre id="env-vars">Loading...</pre>
+        
+        <h3>Script Test Results</h3>
+        <pre id="test-results">Running tests...</pre>
+      </div>
+    </div>
+  </main>
+  
+  <script>
+    // Test function
+    function runTests() {
+      const results = [];
+      
+      // Test 1: Check if env-config.js loaded
+      try {
+        results.push(`ENV object exists: ${typeof window.ENV !== 'undefined'}`);
+        if (typeof window.ENV !== 'undefined') {
+          results.push(`ENV.VITE_API_URL: ${window.ENV.VITE_API_URL}`);
+        }
+      } catch (e) {
+        results.push(`Error checking ENV: ${e.message}`);
+      }
+      
+      // Test 2: Check if import.meta.env is available
+      try {
+        results.push(`import.meta.env exists: ${typeof window.import?.meta?.env !== 'undefined'}`);
+        if (typeof window.import?.meta?.env !== 'undefined') {
+          results.push(`import.meta.env.VITE_API_URL: ${window.import.meta.env.VITE_API_URL}`);
+        }
+      } catch (e) {
+        results.push(`Error checking import.meta.env: ${e.message}`);
+      }
+      
+      // Test 3: Test CORS with a simple fetch
+      results.push('Testing CORS with fetch to API...');
+      fetch('https://charterhub-api.onrender.com/auth/csrf-token.php', {
+        mode: 'cors',
+        credentials: 'include'
+      })
+      .then(response => {
+        results.push(`CORS fetch status: ${response.status}`);
+        return response.text();
+      })
+      .then(data => {
+        results.push(`CORS fetch response: ${data.substring(0, 100)}...`);
+      })
+      .catch(error => {
+        results.push(`CORS fetch error: ${error.message}`);
+      })
+      .finally(() => {
+        document.getElementById('test-results').textContent = results.join('\n');
+      });
+      
+      // Display initial results
+      document.getElementById('test-results').textContent = results.join('\n');
+    }
+    
+    // Display environment variables
+    function showEnvVars() {
+      try {
+        const envVars = JSON.stringify(window.ENV, null, 2);
+        document.getElementById('env-vars').textContent = envVars;
+      } catch (e) {
+        document.getElementById('env-vars').textContent = `Error: ${e.message}`;
+      }
+    }
+    
+    // Run tests when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      showEnvVars();
+      runTests();
+    });
+  </script>
+  
+  <script src="/redirect.js"></script>
+</body>
+</html> 
