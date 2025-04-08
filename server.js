@@ -5,10 +5,17 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Find the dist directory
-const distPath = fs.existsSync(path.join(__dirname, 'frontend', 'dist')) 
-  ? path.join(__dirname, 'frontend', 'dist')
-  : path.join(__dirname, 'dist');
+// Check all possible dist locations
+const possibleDistPaths = [
+  path.join(__dirname, 'dist'),
+  path.join(__dirname, 'frontend', 'dist'),
+  path.join(__dirname, 'build'),
+  path.join(__dirname, 'frontend', 'build'),
+  path.join(__dirname, 'public')
+];
+
+// Find the first dist directory that exists
+const distPath = possibleDistPaths.find(path => fs.existsSync(path)) || path.join(__dirname, 'dist');
 
 console.log(`Serving from: ${distPath}`);
 
@@ -52,12 +59,60 @@ app.get('/redirect.js', (req, res) => {
   `);
 });
 
+// List all files in the dist directory for debugging
+console.log('Files in dist directory:');
+try {
+  const distFiles = fs.readdirSync(distPath);
+  distFiles.forEach(file => {
+    console.log(` - ${file}`);
+  });
+} catch (err) {
+  console.error(`Error reading dist directory: ${err.message}`);
+}
+
 // Serve static files
 app.use(express.static(distPath));
 
+// Serve from alternative paths if they exist
+possibleDistPaths.forEach(path => {
+  if (path !== distPath && fs.existsSync(path)) {
+    console.log(`Also serving from alternative path: ${path}`);
+    app.use(express.static(path));
+  }
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Try to find index.html in any of the possible locations
+    for (const dir of possibleDistPaths) {
+      const altIndexPath = path.join(dir, 'index.html');
+      if (fs.existsSync(altIndexPath)) {
+        console.log(`Found index.html in alternative location: ${dir}`);
+        return res.sendFile(altIndexPath);
+      }
+    }
+    
+    // Last resort - generate a simple HTML page
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>CharterHub</title>
+          <script src="/env-config.js"></script>
+        </head>
+        <body>
+          <h1>CharterHub</h1>
+          <p>Application is running but could not find index.html.</p>
+          <script src="/redirect.js"></script>
+        </body>
+      </html>
+    `);
+  }
 });
 
 app.listen(port, () => {

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "build": "node clear-node-modules.js"
+    "build": "cd frontend && npm run build && cd .. && node build-probe.js"
   },
   "dependencies": {
     "express": "^4.17.3"

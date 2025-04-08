@@ -1,13 +1,12 @@
 {
   "version": 2,
+  "outputDirectory": "dist",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": { 
-        "includeFiles": ["frontend/dist/**"],
-        "excludeFiles": ["**/node_modules/**", "**/tests/**", "**/.vercel/**"]
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
