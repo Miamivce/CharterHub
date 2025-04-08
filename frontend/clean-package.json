@@ -1,0 +1,11 @@
+{
+  "name": "charterhub-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "^4.17.3"
+  },
+  "scripts": {
+    "build": "node ../build.js"
+  }
+} 

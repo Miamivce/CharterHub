@@ -4,7 +4,10 @@
     {
       "src": "server.js",
       "use": "@vercel/node",
-      "config": { "includeFiles": ["frontend/dist/**"] }
+      "config": { 
+        "includeFiles": ["frontend/dist/**"],
+        "excludeFiles": ["**/node_modules/**", "**/tests/**", "**/.vercel/**"]
+      }
     }
   ],
   "routes": [
