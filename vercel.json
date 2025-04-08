@@ -61,7 +61,7 @@
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
     "NODE_ENV": "production",
-    "VITE_ALLOWED_ORIGINS": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app,https://charter-jx9g0obll-maurits-s-projects.vercel.app,https://app.yachtstory.be",
-    "VITE_FRONTEND_URL": "https://charter-jx9g0obll-maurits-s-projects.vercel.app"
+    "VITE_ALLOWED_ORIGINS": "https://charter-hub.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-hub.vercel.app"
   }
 } 

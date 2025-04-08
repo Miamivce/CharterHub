@@ -58,6 +58,12 @@
       color: #dc3545;
       font-weight: bold;
     }
+    .note {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
   </style>
 </head>
 <body>
@@ -68,6 +74,11 @@
     <div class="container">
       <h2>JavaScript Loading Test</h2>
       <p>This page tests if JavaScript files are loading correctly on <strong>charter-hub.vercel.app</strong>.</p>
+      
+      <div class="note">
+        <strong>Note:</strong> The application is now configured to use only the custom domain <code>charter-hub.vercel.app</code> for CORS settings. 
+        Deployment-specific URLs have been removed to prevent CORS issues when deploying new versions.
+      </div>
       
       <div class="results">
         <div class="section">
@@ -100,7 +111,8 @@
         hostname: window.location.hostname,
         protocol: window.location.protocol,
         pathname: window.location.pathname,
-        href: window.location.href
+        href: window.location.href,
+        isCustomDomain: window.location.hostname === 'charter-hub.vercel.app'
       };
       document.getElementById('domain-info').textContent = JSON.stringify(info, null, 2);
     }
@@ -115,6 +127,7 @@
         if (typeof window.ENV !== 'undefined') {
           results.push(`ENV.VITE_API_URL: ${window.ENV.VITE_API_URL}`);
           results.push(`ENV.VITE_FRONTEND_URL: ${window.ENV.VITE_FRONTEND_URL}`);
+          results.push(`ENV.VITE_ALLOWED_ORIGINS: ${window.ENV.VITE_ALLOWED_ORIGINS}`);
         }
       } catch (e) {
         results.push(`Error checking ENV: ${e.message}`);
@@ -126,6 +139,7 @@
         if (typeof window.import?.meta?.env !== 'undefined') {
           results.push(`import.meta.env.VITE_API_URL: ${window.import.meta.env.VITE_API_URL}`);
           results.push(`import.meta.env.VITE_FRONTEND_URL: ${window.import.meta.env.VITE_FRONTEND_URL}`);
+          results.push(`import.meta.env.VITE_ALLOWED_ORIGINS: ${window.import.meta.env.VITE_ALLOWED_ORIGINS}`);
         }
       } catch (e) {
         results.push(`Error checking import.meta.env: ${e.message}`);
