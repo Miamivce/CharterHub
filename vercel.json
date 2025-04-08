@@ -26,11 +26,23 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+      ]
     }
   ],
-  "rewrites": [
-    { "source": "/(env-config|redirect)\\.js", "destination": "/$1.js" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/env-config.js", "dest": "/env-config.js" },
+    { "src": "/redirect.js", "dest": "/redirect.js" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/images/(.*)", "dest": "/images/$1" },
+    { "src": "/test.html", "dest": "/test.html" },
+    { "src": "/(.*)", "status": 200, "dest": "/index.html" }
   ]
 } 

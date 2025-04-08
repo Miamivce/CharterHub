@@ -3,52 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CharterHub Test Page</title>
+  <title>Test Page - CharterHub</title>
   <script src="/env-config.js"></script>
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      background: #f8f9fa;
-    }
-    header {
-      background: #0066cc;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-    }
-    main {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 2rem;
-    }
-    .container {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
       max-width: 800px;
       margin: 0 auto;
-      text-align: center;
+      padding: 20px;
     }
-    .results {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: #f1f3f5;
+    h1 {
+      color: #0066cc;
+    }
+    .card {
+      background: #f8f9fa;
       border-radius: 4px;
-      text-align: left;
-    }
-    pre {
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .section {
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid #dee2e6;
-      padding-bottom: 1.5rem;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .success {
       color: #28a745;
@@ -58,162 +32,50 @@
       color: #dc3545;
       font-weight: bold;
     }
-    .note {
-      background-color: #fff3cd;
-      border-left: 4px solid #ffc107;
-      padding: 1rem;
-      margin: 1rem 0;
-    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>CharterHub Test Page</h1>
-  </header>
-  <main>
-    <div class="container">
-      <h2>JavaScript Loading Test</h2>
-      <p>This page tests if JavaScript files are loading correctly on <strong>charter-hub.vercel.app</strong>.</p>
-      
-      <div class="note">
-        <strong>Note:</strong> The application is now configured to use only the custom domain <code>charter-hub.vercel.app</code> for CORS settings. 
-        Deployment-specific URLs have been removed to prevent CORS issues when deploying new versions.
-      </div>
-      
-      <div class="results">
-        <div class="section">
-          <h3>Current Domain Info</h3>
-          <pre id="domain-info">Loading...</pre>
-        </div>
-        
-        <div class="section">
-          <h3>Environment Variables</h3>
-          <pre id="env-vars">Loading...</pre>
-        </div>
-        
-        <div class="section">
-          <h3>Script Test Results</h3>
-          <pre id="test-results">Running tests...</pre>
-        </div>
-        
-        <div class="section">
-          <h3>CORS Test</h3>
-          <pre id="cors-test">Running CORS test...</pre>
-        </div>
-      </div>
-    </div>
-  </main>
+  <h1>CharterHub Test Page</h1>
+  
+  <div class="card">
+    <h2>Static File Test</h2>
+    <p>If you can see this page, static HTML files are being served correctly.</p>
+    <p>This confirms that the basic file serving is working.</p>
+  </div>
+  
+  <div class="card">
+    <h2>Environment Configuration</h2>
+    <p>Testing if the environment configuration is loaded:</p>
+    <pre id="env-output">Checking...</pre>
+  </div>
+  
+  <div class="card">
+    <h2>Links for Testing</h2>
+    <ul>
+      <li><a href="/">Home Page</a></li>
+      <li><a href="/login">Login Page</a></li>
+      <li><a href="/admin">Admin Page</a></li>
+      <li><a href="/non-existent-page">Non-existent Page (should redirect)</a></li>
+    </ul>
+  </div>
   
   <script>
-    // Display domain info
-    function showDomainInfo() {
-      const info = {
-        hostname: window.location.hostname,
-        protocol: window.location.protocol,
-        pathname: window.location.pathname,
-        href: window.location.href,
-        isCustomDomain: window.location.hostname === 'charter-hub.vercel.app'
-      };
-      document.getElementById('domain-info').textContent = JSON.stringify(info, null, 2);
-    }
-    
-    // Test function
-    function runTests() {
-      const results = [];
-      
-      // Test 1: Check if env-config.js loaded
+    // Check if environment variables are loaded
+    window.onload = function() {
+      const envOutput = document.getElementById('env-output');
       try {
-        results.push(`ENV object exists: ${typeof window.ENV !== 'undefined'}`);
-        if (typeof window.ENV !== 'undefined') {
-          results.push(`ENV.VITE_API_URL: ${window.ENV.VITE_API_URL}`);
-          results.push(`ENV.VITE_FRONTEND_URL: ${window.ENV.VITE_FRONTEND_URL}`);
-          results.push(`ENV.VITE_ALLOWED_ORIGINS: ${window.ENV.VITE_ALLOWED_ORIGINS}`);
+        const env = window.ENV || {};
+        if (env.VITE_API_URL) {
+          envOutput.innerHTML = `<span class="success">SUCCESS:</span> Environment config loaded!\n`;
+          envOutput.innerHTML += `API URL: ${env.VITE_API_URL}\n`;
+          envOutput.innerHTML += `Frontend URL: ${env.VITE_FRONTEND_URL}\n`;
+        } else {
+          envOutput.innerHTML = '<span class="error">ERROR:</span> Environment variables not found or empty.';
         }
-      } catch (e) {
-        results.push(`Error checking ENV: ${e.message}`);
+      } catch (error) {
+        envOutput.innerHTML = `<span class="error">ERROR:</span> ${error.message}`;
       }
-      
-      // Test 2: Check if import.meta.env is available
-      try {
-        results.push(`import.meta.env exists: ${typeof window.import?.meta?.env !== 'undefined'}`);
-        if (typeof window.import?.meta?.env !== 'undefined') {
-          results.push(`import.meta.env.VITE_API_URL: ${window.import.meta.env.VITE_API_URL}`);
-          results.push(`import.meta.env.VITE_FRONTEND_URL: ${window.import.meta.env.VITE_FRONTEND_URL}`);
-          results.push(`import.meta.env.VITE_ALLOWED_ORIGINS: ${window.import.meta.env.VITE_ALLOWED_ORIGINS}`);
-        }
-      } catch (e) {
-        results.push(`Error checking import.meta.env: ${e.message}`);
-      }
-            
-      // Display results
-      document.getElementById('test-results').textContent = results.join('\n');
-    }
-    
-    // Test CORS
-    function testCORS() {
-      const corsResults = [];
-      
-      corsResults.push('Testing CORS with fetch to API...');
-      
-      // Test with include credentials
-      fetch('https://charterhub-api.onrender.com/auth/csrf-token.php', {
-        mode: 'cors',
-        credentials: 'include',
-        headers: {
-          'Origin': window.location.origin
-        }
-      })
-      .then(response => {
-        corsResults.push(`CORS fetch status (with credentials): ${response.status}`);
-        corsResults.push(`Response headers: ${JSON.stringify([...response.headers])}`);
-        return response.text();
-      })
-      .then(data => {
-        corsResults.push(`CORS fetch response: ${data.substring(0, 100)}...`);
-        
-        // Test without credentials as fallback
-        return fetch('https://charterhub-api.onrender.com/auth/csrf-token.php', {
-          mode: 'cors',
-          credentials: 'omit',
-          headers: {
-            'Origin': window.location.origin
-          }
-        });
-      })
-      .then(response => {
-        corsResults.push(`CORS fetch status (without credentials): ${response.status}`);
-        return response.text();
-      })
-      .then(data => {
-        corsResults.push(`CORS fetch response (without credentials): ${data.substring(0, 100)}...`);
-      })
-      .catch(error => {
-        corsResults.push(`CORS fetch error: ${error.message}`);
-      })
-      .finally(() => {
-        document.getElementById('cors-test').textContent = corsResults.join('\n');
-      });
-    }
-    
-    // Display environment variables
-    function showEnvVars() {
-      try {
-        const envVars = JSON.stringify(window.ENV, null, 2);
-        document.getElementById('env-vars').textContent = envVars;
-      } catch (e) {
-        document.getElementById('env-vars').textContent = `Error: ${e.message}`;
-      }
-    }
-    
-    // Run tests when page loads
-    window.addEventListener('DOMContentLoaded', () => {
-      showDomainInfo();
-      showEnvVars();
-      runTests();
-      testCORS();
-    });
+    };
   </script>
-  
-  <script src="/redirect.js"></script>
 </body>
 </html> 

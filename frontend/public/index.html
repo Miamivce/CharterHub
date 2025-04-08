@@ -2,9 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CharterHub</title>
+  <meta name="description" content="CharterHub - Yacht Charter Management Platform" />
+  <title>Charter Hub</title>
   <script src="/env-config.js"></script>
+  <script>
+    // Handle redirects from 404.html
+    (function() {
+      // Parse the URL parameters
+      var params = new URLSearchParams(window.location.search);
+      var redirectPath = params.get('redirect');
+      
+      // If we have a redirect parameter, navigate to that path
+      if (redirectPath) {
+        // Clean the URL by removing the redirect parameter
+        history.replaceState(null, null, redirectPath);
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
 </head>
 <body class="bg-gray-100">
@@ -25,5 +41,6 @@
     </div>
   </div>
   <script src="/redirect.js"></script>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html> 

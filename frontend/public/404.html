@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <script>
+    // This script preserves the URL in the address bar while redirecting to the index.html
+    // This is a common solution for SPAs with client-side routing when hosted on static servers
+    
+    // Get the current path (everything after the domain)
+    const path = window.location.pathname + window.location.search + window.location.hash;
+    
+    // Redirect to the homepage with the path in the URL
+    window.location.href = window.location.origin + '?redirect=' + encodeURIComponent(path);
+    
+    // If the browser doesn't redirect immediately, show a message
+    setTimeout(function() {
+      document.getElementById('redirect-message').style.display = 'block';
+    }, 1000);
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      margin: 0;
+      color: #333;
+    }
+    #redirect-message {
+      display: none;
+      margin-top: 20px;
+    }
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Redirecting to Charter Hub</h1>
+  <div id="redirect-message">
+    <p>If you're not redirected automatically, <a href="/">click here</a> to go to the homepage.</p>
+  </div>
+</body>
+</html> 
