@@ -2,11 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/server.js",
+      "src": "server.js",
       "use": "@vercel/node"
     },
     {
-      "src": "frontend/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist"
@@ -16,15 +16,15 @@
   "routes": [
     {
       "src": "/env-config.js",
-      "dest": "frontend/server.js"
+      "dest": "/server.js"
     },
     {
       "src": "/redirect.js",
-      "dest": "frontend/server.js"
+      "dest": "/server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/server.js"
+      "dest": "/server.js"
     }
   ],
   "env": {
