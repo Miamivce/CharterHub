@@ -16,13 +16,8 @@ if (!fs.existsSync(distDir)) {
 console.log('Copying critical static files from public directory');
 const publicDir = path.join(process.cwd(), 'public');
 
-// Check if public/env-config.js exists and copy it
-const publicEnvConfig = path.join(publicDir, 'env-config.js');
-if (fs.existsSync(publicEnvConfig)) {
-  fs.copyFileSync(publicEnvConfig, path.join(distDir, 'env-config.js'));
-  console.log('Copied env-config.js from public directory');
-} else {
-  // Create env-config.js directly if not found in public
+// Function to create env-config.js
+function createEnvConfigJs() {
   console.log('Creating env-config.js directly');
   const envConfig = `
 // Environment variables for CharterHub frontend
@@ -30,7 +25,8 @@ window.ENV = {
   VITE_API_URL: "https://charterhub-api.onrender.com",
   VITE_PHP_API_URL: "https://charterhub-api.onrender.com",
   VITE_FRONTEND_URL: "https://charter-hub.vercel.app",
-  VITE_ALLOWED_ORIGINS: "https://charter-hub.vercel.app,https://app.yachtstory.be"
+  VITE_ADMIN_URL: "https://admin.yachtstory.be",
+  VITE_ALLOWED_ORIGINS: "https://charter-hub.vercel.app,https://admin.yachtstory.be,https://app.yachtstory.be"
 };
 
 // Make environment variables available through import.meta.env
@@ -40,7 +36,8 @@ window.import.meta.env = {
   VITE_API_URL: "https://charterhub-api.onrender.com",
   VITE_PHP_API_URL: "https://charterhub-api.onrender.com",
   VITE_FRONTEND_URL: "https://charter-hub.vercel.app",
-  VITE_ALLOWED_ORIGINS: "https://charter-hub.vercel.app,https://app.yachtstory.be",
+  VITE_ADMIN_URL: "https://admin.yachtstory.be",
+  VITE_ALLOWED_ORIGINS: "https://charter-hub.vercel.app,https://admin.yachtstory.be,https://app.yachtstory.be",
   MODE: 'production',
   PROD: true,
   DEV: false
@@ -48,31 +45,70 @@ window.import.meta.env = {
 
 console.log('Environment config loaded successfully');
 `;
-  fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-  console.log('Created env-config.js successfully');
+  return envConfig;
 }
 
-// Check if public/redirect.js exists and copy it
-const publicRedirect = path.join(publicDir, 'redirect.js');
-if (fs.existsSync(publicRedirect)) {
-  fs.copyFileSync(publicRedirect, path.join(distDir, 'redirect.js'));
-  console.log('Copied redirect.js from public directory');
-} else {
-  // Create redirect.js directly if not found in public
+// Function to create redirect.js
+function createRedirectJs() {
   console.log('Creating redirect.js directly');
   const redirectJs = `
 // Redirect script for CharterHub
 (function() {
-  // Only redirect from root path to /admin
-  if (window.location.pathname === '/') {
+  // Only redirect from root path to /admin for admin domain
+  const hostname = window.location.hostname;
+  const pathname = window.location.pathname;
+  
+  if (hostname === 'admin.yachtstory.be' && pathname === '/') {
     console.log('Redirecting to admin dashboard');
     window.location.href = '/admin';
   }
 })();
 `;
-  fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
-  console.log('Created redirect.js successfully');
+  return redirectJs;
 }
+
+// Create these files with proper content type
+const envConfig = createEnvConfigJs();
+const redirectJs = createRedirectJs();
+
+// Write these files both as HTML files (for direct access) and as JS files
+fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
+
+// Also create HTML files that serve the same content but with JavaScript MIME type
+const envConfigHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="application/javascript; charset=utf-8">
+  <title>Environment Config</title>
+</head>
+<body>
+<script>
+${envConfig}
+</script>
+</body>
+</html>`;
+
+const redirectHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="application/javascript; charset=utf-8">
+  <title>Redirect Script</title>
+</head>
+<body>
+<script>
+${redirectJs}
+</script>
+</body>
+</html>`;
+
+// Write the HTML versions as fallbacks
+fs.writeFileSync(path.join(distDir, 'env-config.html'), envConfigHtml);
+fs.writeFileSync(path.join(distDir, 'redirect.html'), redirectHtml);
+
+console.log('Created critical JavaScript files with proper content types');
 
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');
@@ -182,8 +218,8 @@ try {
   console.log('Build succeeded');
   
   // Make sure our critical files are still present
-  fs.copyFileSync(path.join(distDir, 'env-config.js'), path.join(distDir, 'env-config.js'));
-  fs.copyFileSync(path.join(distDir, 'redirect.js'), path.join(distDir, 'redirect.js'));
+  fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
+  fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
   
   // Make sure index.html includes the env-config.js and redirect.js scripts
   const indexPath = path.join(distDir, 'index.html');

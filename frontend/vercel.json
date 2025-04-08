@@ -1,45 +1,68 @@
 {
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.1.1 cors express http-proxy-middleware --no-fund && npm run vercel-build",
+  "installCommand": "cd frontend && npm install --no-fund",
   "framework": "vite",
-  "outputDirectory": "dist",
-  "installCommand": "echo Skipping frontend default install",
-  "build": {
-    "env": {
-      "VITE_API_BASE_URL": "https://charterhub-api.onrender.com",
-      "VITE_API_URL": "https://charterhub-api.onrender.com",
-      "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
-      "VITE_WP_API_URL": "https://yachtstory.com/wp-json",
-      "VITE_USE_JWT": "true",
-      "VITE_FRONTEND_URL": "https://app.yachtstory.be",
-      "VITE_ALLOWED_ORIGINS": "https://app.yachtstory.be,https://admin.yachtstory.be",
-      "VITE_ENV": "production",
-      "VITE_DEBUG": "false",
-      "TSC_COMPILE_ON_ERROR": "true",
-      "VITE_SKIP_TS_CHECK": "true",
-      "NODE_ENV": "production",
-      "SKIP_TYPESCRIPT_CHECK": "true"
+  "outputDirectory": "frontend/dist",
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(env-config|redirect)\\.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(js)$",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(css)$",
+      "headers": [
+        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|svg|gif)$",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" }
+      ]
     }
-  },
+  ],
   "routes": [
-    {
-      "src": "^/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "^/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "^/api/(.*)",
-      "dest": "https://charterhub-api.onrender.com/api/$1"
-    },
-    {
-      "src": "^/auth/(.*)",
-      "dest": "https://charterhub-api.onrender.com/auth/$1"
-    },
-    {
-      "src": "^/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+    { "handle": "filesystem" },
+    { "src": "/env-config.js", "dest": "/env-config.js", "continue": true },
+    { "src": "/redirect.js", "dest": "/redirect.js", "continue": true },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)\\.js", "dest": "/$1.js" },
+    { "src": "/(.*)\\.css", "dest": "/$1.css" },
+    { "src": "/(.*)\\.png", "dest": "/$1.png" },
+    { "src": "/(.*)\\.jpg", "dest": "/$1.jpg" },
+    { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "env": {
+    "SKIP_TYPESCRIPT_CHECK": "true",
+    "VITE_API_URL": "https://charterhub-api.onrender.com",
+    "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
+    "NODE_ENV": "production",
+    "VITE_ALLOWED_ORIGINS": "https://charter-hub.vercel.app,https://admin.yachtstory.be,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-hub.vercel.app",
+    "VITE_ADMIN_URL": "https://admin.yachtstory.be"
+  }
 } 
