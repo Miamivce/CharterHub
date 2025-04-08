@@ -4,22 +4,43 @@ const CACHE_NAME = 'charterhub-cache-v1';
 // Skip waiting on install
 self.addEventListener('install', event => {
   console.log('Service worker installed');
-  event.waitUntil(self.skipWaiting());
+  self.skipWaiting();
 });
 
 // Clear old caches on activate
 self.addEventListener('activate', event => {
   console.log('Service worker activated');
   
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames
-          .filter(cacheName => cacheName.startsWith('charterhub-') && cacheName !== CACHE_NAME)
-          .map(cacheName => caches.delete(cacheName))
-      );
-    }).then(() => self.clients.claim())
-  );
+  // Clear any old caches
+  caches.keys().then(cacheNames => {
+    return Promise.all(
+      cacheNames.map(cacheName => caches.delete(cacheName))
+    );
+  });
+  
+  // Unregister this service worker to prevent navigation issues
+  self.registration.unregister()
+    .then(() => {
+      console.log('Service worker unregistered to prevent navigation interference');
+    });
+});
+
+// Don't intercept any fetch events
+// Let the browser and Vercel handle all routing
+
+// Unregister this service worker and any previous versions
+// This is to prevent any interference with navigation
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'UNREGISTER') {
+    self.registration.unregister()
+      .then(() => {
+        console.log('Service worker unregistered');
+      });
+  }
 });
 
 // Only handle navigation requests to provide fallback for SPA routes
@@ -41,13 +62,6 @@ self.addEventListener('fetch', event => {
     );
   }
   // Let the browser handle all other requests normally
-});
-
-// Handle message events (like skip waiting)
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });
 
 // Push event - handle notifications

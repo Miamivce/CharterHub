@@ -122,7 +122,6 @@ try {
       '_redirects',
       'test.html',
       'vite.svg',
-      'service-worker.js',
       'favicon.ico'
     ];
     
@@ -199,8 +198,27 @@ try {
         history.replaceState(null, null, redirectPath);
       }
     })();
+    
+    // Unregister any existing service worker to prevent navigation issues
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+          console.log('Service worker unregistered');
+        }
+      });
+    }
   </script>
 </head>`
+      );
+      updated = true;
+    }
+    
+    // Remove any service worker registration code
+    if (indexContent.includes('serviceWorker.register')) {
+      indexContent = indexContent.replace(
+        /navigator\.serviceWorker\.register\([^)]*\)[\s\S]*?[;)]/g,
+        'console.log("Service worker registration disabled")'
       );
       updated = true;
     }
