@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
   "buildCommand": "cd frontend && npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": null,
