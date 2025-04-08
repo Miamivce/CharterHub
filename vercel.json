@@ -1,25 +1,23 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "npm install --no-fund --legacy-peer-deps",
-  "framework": null,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["frontend/dist/**"] }
+    }
+  ],
+  "routes": [
+    { "src": "/env-config.js", "dest": "/server.js" },
+    { "src": "/redirect.js", "dest": "/server.js" },
+    { "src": "/(.*)", "dest": "/server.js" }
+  ],
   "headers": [
     {
-      "source": "/(env-config|redirect)\\.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(js)$",
+      "source": "/(.*)\\.js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
       ]
     }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
   ]
 } 
