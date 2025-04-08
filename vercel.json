@@ -8,10 +8,19 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/(.*)\\.js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
@@ -26,14 +35,6 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
-      ]
     }
   ],
   "routes": [
@@ -46,6 +47,7 @@
     { "src": "^/404.html", "dest": "/404.html" },
     { "src": "^/_redirects", "dest": "/_redirects" },
     { "src": "^/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "^/(login|dashboard|signup|register|admin|profile|account|bookings|yachts|destinations)(.*)", "dest": "/index.html", "status": 200 },
     { "handle": "filesystem" },
     { "src": "^/(.*)", "status": 200, "dest": "/index.html" }
   ]

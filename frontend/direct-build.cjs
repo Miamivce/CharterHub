@@ -111,6 +111,16 @@ try {
   fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
   console.log('Files written to dist directory');
 
+  // Create SPA route directories and copy index.html to them
+  // This ensures direct access to these routes works even if the SPA routing fails
+  const spaRoutes = [
+    'login',
+    'dashboard',
+    'register',
+    'admin',
+    'profile'
+  ];
+
   // Copy critical files from public directory
   const publicDir = path.join(rootDir, 'public');
   if (fs.existsSync(publicDir)) {
@@ -122,7 +132,8 @@ try {
       '_redirects',
       'test.html',
       'vite.svg',
-      'favicon.ico'
+      'favicon.ico',
+      '_vercel_cache_breaker.txt'
     ];
     
     // Copy all essential files
@@ -229,6 +240,18 @@ try {
     } else {
       console.log('index.html already has the required scripts');
     }
+    
+    // Now create directories for SPA routes and copy index.html to them
+    console.log('Creating SPA route directories with index.html copies...');
+    for (const route of spaRoutes) {
+      const routeDir = path.join(distDir, route);
+      if (!fs.existsSync(routeDir)) {
+        fs.mkdirSync(routeDir, { recursive: true });
+      }
+      fs.copyFileSync(viteGeneratedIndexPath, path.join(routeDir, 'index.html'));
+      console.log(`Created ${route}/index.html`);
+    }
+    
   } else {
     console.error('Warning: No Vite-generated index.html found. Vite build may have failed.');
     console.error('Ensure the build process is working correctly.');
