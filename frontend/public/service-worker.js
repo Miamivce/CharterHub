@@ -1,177 +1,92 @@
-const CACHE_NAME = 'charterhub-admin-v1';
-const RUNTIME_CACHE = 'charterhub-runtime';
-const CACHE_VERSION = '1.0.0';
+// Simple service worker for CharterHub SPA
+const CACHE_NAME = 'charterhub-cache-v1';
 
-const CURRENT_CACHES = {
-  static: `${CACHE_NAME}-static-v${CACHE_VERSION}`,
-  runtime: `${CACHE_NAME}-runtime-v${CACHE_VERSION}`,
-};
-
-// Resources to cache
-const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.ico',
-  '/assets/icons/*',
-];
-
-// Cache duration in milliseconds
-const CACHE_DURATION = {
-  static: 7 * 24 * 60 * 60 * 1000, // 7 days
-  runtime: 60 * 60 * 1000, // 1 hour
-};
-
-// Install event - precache static resources
+// On install, skip waiting to activate immediately
 self.addEventListener('install', event => {
-  event.waitUntil(
-    Promise.all([
-      caches.open(CURRENT_CACHES.static)
-        .then(cache => cache.addAll(PRECACHE_URLS))
-        .catch(error => {
-          console.error('Pre-cache failed:', error);
-          // Continue installation even if pre-cache fails
-          return self.skipWaiting();
-        }),
-      self.skipWaiting(),
-    ])
-  );
+  console.log('Service worker installed');
+  event.waitUntil(self.skipWaiting());
 });
 
-// Activate event - clean up old caches
+// On activate, clear any problematic caches
 self.addEventListener('activate', event => {
+  console.log('Service worker activated');
+  
+  // Clear any old caches that might be causing issues
   event.waitUntil(
-    Promise.all([
-      // Delete old cache versions
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            if (!Object.values(CURRENT_CACHES).includes(cacheName)) {
-              return caches.delete(cacheName);
-            }
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames
+          .filter(cacheName => cacheName.startsWith('charterhub-') && cacheName !== CACHE_NAME)
+          .map(cacheName => {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
           })
-        );
-      }),
-      // Clear old runtime cache entries
-      caches.open(CURRENT_CACHES.runtime).then(cache => {
-        return cache.keys().then(requests => {
-          return Promise.all(
-            requests.map(request => {
-              return cache.match(request).then(response => {
-                if (response && response.headers.get('date')) {
-                  const date = new Date(response.headers.get('date'));
-                  if (Date.now() - date.getTime() > CACHE_DURATION.runtime) {
-                    return cache.delete(request);
-                  }
-                }
-              });
-            })
-          );
-        });
-      }),
-      // Claim clients
-      self.clients.claim(),
-    ])
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
-// Helper function to determine if a request should be cached
-const shouldCache = (request) => {
-  // Don't cache:
-  // 1. Non-GET requests
-  if (request.method !== 'GET') return false;
-  
-  // 2. API requests
-  if (request.url.includes('/wp-json/')) return false;
-  
-  // 3. Authentication-related requests
-  if (request.url.includes('/login') || request.url.includes('/auth')) return false;
-  
-  // 4. Admin routes
-  if (request.url.includes('/admin')) return false;
-
-  // 5. Query parameters (except for assets)
-  if (!request.url.includes('/assets/') && request.url.includes('?')) return false;
-
-  return true;
-};
-
-// Helper function to determine cache strategy based on request
-const getCacheStrategy = (request) => {
-  // Use cache-first for assets
-  if (request.url.includes('/assets/')) {
-    return 'cache-first';
-  }
-  
-  // Use network-first for HTML documents
-  if (request.headers.get('Accept').includes('text/html')) {
-    return 'network-first';
-  }
-  
-  // Use stale-while-revalidate for everything else
-  return 'stale-while-revalidate';
-};
-
-// Fetch event - handle requests
+// Network-first strategy for all requests
+// This ensures users always get the latest content unless offline
 self.addEventListener('fetch', event => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
-
-  // Only handle GET requests
+  
+  // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
-
-  const strategy = getCacheStrategy(event.request);
-
-  switch (strategy) {
-    case 'cache-first':
-      event.respondWith(
-        caches.match(event.request)
-          .then(response => response || fetch(event.request))
-          .catch(() => fetch(event.request))
-      );
-      break;
-
-    case 'network-first':
-      event.respondWith(
-        fetch(event.request)
-          .then(response => {
-            if (shouldCache(event.request)) {
-              const clonedResponse = response.clone();
-              caches.open(CURRENT_CACHES.runtime)
-                .then(cache => cache.put(event.request, clonedResponse));
-            }
-            return response;
-          })
-          .catch(() => caches.match(event.request))
-      );
-      break;
-
-    case 'stale-while-revalidate':
-      event.respondWith(
-        caches.match(event.request).then(cachedResponse => {
-          const fetchPromise = fetch(event.request).then(response => {
-            if (shouldCache(event.request)) {
-              const clonedResponse = response.clone();
-              caches.open(CURRENT_CACHES.runtime)
-                .then(cache => cache.put(event.request, clonedResponse));
-            }
-            return response;
+  
+  // Special handling for HTML navigation requests
+  const isHTMLRequest = event.request.mode === 'navigate' || 
+                        (event.request.method === 'GET' && 
+                         event.request.headers.get('accept').includes('text/html'));
+  
+  if (isHTMLRequest) {
+    // For HTML requests, always try network first, then fall back to index.html in cache
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Cache the successful response
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
           });
-
-          return cachedResponse || fetchPromise;
+          return response;
         })
-      );
-      break;
+        .catch(() => {
+          // If network fails, return index.html from cache or network
+          return caches.match('/index.html') || fetch('/index.html');
+        })
+    );
+    return;
   }
+  
+  // For assets, try network first, then cache
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // Cache the asset if it's a successful response
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // If network fails, try to get it from the cache
+        return caches.match(event.request);
+      })
+  );
 });
 
-// Message event - handle cache updates
+// Handle message events (like skip waiting)
 self.addEventListener('message', event => {
-  if (event.data.type === 'SKIP_WAITING') {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });

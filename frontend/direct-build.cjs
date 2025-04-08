@@ -49,9 +49,47 @@ function createRedirectJs() {
 })();`;
 }
 
+// Function to copy a file with logging
+function copyFileWithLogging(src, dest) {
+  if (fs.existsSync(src)) {
+    console.log(`Copying ${src} to ${dest}`);
+    fs.copyFileSync(src, dest);
+    return true;
+  } else {
+    console.log(`Warning: ${src} not found`);
+    return false;
+  }
+}
+
+// Function to copy a directory recursively
+function copyDirectoryRecursive(srcDir, destDir) {
+  if (!fs.existsSync(srcDir)) {
+    console.log(`Warning: Source directory ${srcDir} not found`);
+    return false;
+  }
+
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+
+  const files = fs.readdirSync(srcDir);
+  for (const file of files) {
+    const srcPath = path.join(srcDir, file);
+    const destPath = path.join(destDir, file);
+    
+    const stat = fs.statSync(srcPath);
+    if (stat.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      copyFileWithLogging(srcPath, destPath);
+    }
+  }
+  
+  return true;
+}
+
 try {
   // Find the correct dist directory
-  // Since we're running the script from frontend directory, dist should be at frontend/dist
   const rootDir = process.cwd();
   console.log('Current working directory:', rootDir);
   
@@ -76,36 +114,55 @@ try {
   // Copy critical files from public directory
   const publicDir = path.join(rootDir, 'public');
   if (fs.existsSync(publicDir)) {
-    // Copy 404.html if it exists
-    const notFoundPath = path.join(publicDir, '404.html');
-    if (fs.existsSync(notFoundPath)) {
-      console.log('Copying 404.html to dist directory');
-      fs.copyFileSync(notFoundPath, path.join(distDir, '404.html'));
-    } else {
-      console.log('Warning: 404.html not found in public directory');
+    console.log('Copying files from public directory to dist');
+    
+    // List of essential files to copy
+    const essentialFiles = [
+      '404.html',
+      '_redirects',
+      'test.html',
+      'vite.svg',
+      'service-worker.js',
+      'index.html', // Copy our fallback index.html
+      'favicon.ico'
+    ];
+    
+    // Copy all essential files
+    for (const file of essentialFiles) {
+      const srcPath = path.join(publicDir, file);
+      const destPath = path.join(distDir, file);
+      copyFileWithLogging(srcPath, destPath);
     }
-
-    // Copy _redirects if it exists
-    const redirectsPath = path.join(publicDir, '_redirects');
-    if (fs.existsSync(redirectsPath)) {
-      console.log('Copying _redirects to dist directory');
-      fs.copyFileSync(redirectsPath, path.join(distDir, '_redirects'));
-    } else {
-      console.log('Warning: _redirects not found in public directory');
+    
+    // Copy images directory if it exists
+    const imagesDir = path.join(publicDir, 'images');
+    if (fs.existsSync(imagesDir)) {
+      const destImagesDir = path.join(distDir, 'images');
+      console.log('Copying images directory');
+      copyDirectoryRecursive(imagesDir, destImagesDir);
     }
-
-    // Copy test.html if it exists
-    const testPath = path.join(publicDir, 'test.html');
-    if (fs.existsSync(testPath)) {
-      console.log('Copying test.html to dist directory');
-      fs.copyFileSync(testPath, path.join(distDir, 'test.html'));
-    }
+  } else {
+    console.error('Warning: public directory not found');
   }
 
-  // Update index.html to include these scripts
-  const indexPath = path.join(distDir, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    let indexContent = fs.readFileSync(indexPath, 'utf8');
+  // Create vite.svg fallback if it's missing
+  const viteSvgPath = path.join(distDir, 'vite.svg');
+  if (!fs.existsSync(viteSvgPath)) {
+    console.log('Creating fallback vite.svg');
+    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <path fill="#41B883" d="M16 2L2 16 16 30 30 16 16 2z"/>
+  <path fill="#0066cc" d="M16 6L6 16 16 26 26 16 16 6z"/>
+  <circle cx="16" cy="16" r="4" fill="#fff"/>
+</svg>`;
+    fs.writeFileSync(viteSvgPath, fallbackSvg);
+  }
+
+  // Update the Vite-generated index.html if it exists
+  const viteGeneratedIndexPath = path.join(distDir, 'index.html');
+  if (fs.existsSync(viteGeneratedIndexPath)) {
+    console.log('Found Vite-generated index.html, updating...');
+    
+    let indexContent = fs.readFileSync(viteGeneratedIndexPath, 'utf8');
     let updated = false;
     
     // Add env-config.js to head if not already there
@@ -129,22 +186,44 @@ try {
     // Add SPA redirect handling script if not already there
     if (!indexContent.includes('URLSearchParams')) {
       indexContent = indexContent.replace(
-        '</script>',
-        '</script>\n    <script>\n      // Handle redirects from 404.html\n      (function() {\n        // Parse the URL parameters\n        var params = new URLSearchParams(window.location.search);\n        var redirectPath = params.get(\'redirect\');\n        \n        // If we have a redirect parameter, navigate to that path\n        if (redirectPath) {\n          // Clean the URL by removing the redirect parameter\n          history.replaceState(null, null, redirectPath);\n        }\n      })();\n    </script>'
+        '</head>',
+        `  <script>
+    // Handle redirects from 404.html
+    (function() {
+      // Parse the URL parameters
+      var params = new URLSearchParams(window.location.search);
+      var redirectPath = params.get('redirect');
+      
+      // If we have a redirect parameter, navigate to that path
+      if (redirectPath) {
+        // Clean the URL by removing the redirect parameter
+        history.replaceState(null, null, redirectPath);
+      }
+    })();
+  </script>
+</head>`
       );
       updated = true;
     }
     
     if (updated) {
-      fs.writeFileSync(indexPath, indexContent);
-      console.log('Updated index.html with script tags and SPA redirect handling');
+      fs.writeFileSync(viteGeneratedIndexPath, indexContent);
+      console.log('Updated index.html with required scripts');
     } else {
       console.log('index.html already has the required scripts');
     }
   } else {
-    console.error('Warning: index.html not found at', indexPath);
-    // Create a fallback index.html if needed
-    const html = `<!DOCTYPE html>
+    // If Vite didn't generate an index.html, copy our public one
+    console.log('No Vite-generated index.html found, copying from public');
+    const publicIndexPath = path.join(publicDir, 'index.html');
+    
+    if (fs.existsSync(publicIndexPath)) {
+      fs.copyFileSync(publicIndexPath, viteGeneratedIndexPath);
+      console.log('Copied index.html from public directory');
+    } else {
+      // Create a fallback index.html if needed
+      console.log('Creating fallback index.html');
+      const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -165,14 +244,31 @@ try {
         }
       })();
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-gray-100">
+    <div id="root">
+      <div class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h1 class="text-2xl font-bold text-blue-600 mb-4">CharterHub</h1>
+          <div id="loading" class="my-4">
+            <p class="text-gray-700">Loading application...</p>
+            <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 75%"></div>
+            </div>
+          </div>
+          <a href="/" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+            Go to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
     <script src="/redirect.js"></script>
   </body>
 </html>`;
-    fs.writeFileSync(indexPath, html);
-    console.log('Created fallback index.html');
+      fs.writeFileSync(viteGeneratedIndexPath, html);
+      console.log('Created fallback index.html');
+    }
   }
 
   console.log('Build completed successfully');

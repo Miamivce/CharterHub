@@ -38,11 +38,16 @@
   ],
   "routes": [
     { "handle": "filesystem" },
-    { "src": "/env-config.js", "dest": "/env-config.js" },
-    { "src": "/redirect.js", "dest": "/redirect.js" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/images/(.*)", "dest": "/images/$1" },
-    { "src": "/test.html", "dest": "/test.html" },
-    { "src": "/(.*)", "status": 200, "dest": "/index.html" }
+    { "src": "^/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "^/images/(.*)", "dest": "/images/$1" },
+    { "src": "^/env-config.js", "dest": "/env-config.js" },
+    { "src": "^/redirect.js", "dest": "/redirect.js" },
+    { "src": "^/service-worker.js", "dest": "/service-worker.js" },
+    { "src": "^/vite.svg", "dest": "/vite.svg" },
+    { "src": "^/test.html", "dest": "/test.html" },
+    { "src": "^/404.html", "dest": "/404.html" },
+    { "src": "^/_redirects", "dest": "/_redirects" },
+    { "src": "^/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "^/(.*)", "status": 200, "dest": "/index.html" }
   ]
 } 
