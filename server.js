@@ -1,8 +1,18 @@
-// Root level Express server to handle redirection to frontend
+// Simple Express server to handle serving the SPA
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Paths to build directories
+const frontendDistPath = path.join(__dirname, 'frontend', 'dist');
+const fallbackDistPath = path.join(__dirname, 'dist');
+
+// Determine which path exists
+const distPath = fs.existsSync(frontendDistPath) ? frontendDistPath : fallbackDistPath;
+
+console.log(`Serving from: ${distPath}`);
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -16,30 +26,69 @@ app.use((req, res, next) => {
   next();
 });
 
-// Redirect to frontend directory
-app.get('/', (req, res) => {
-  res.redirect('/frontend');
-});
-
-// Special handling for JS files
+// Special handling for env-config.js
 app.get('/env-config.js', (req, res) => {
   res.set('Content-Type', 'application/javascript; charset=utf-8');
-  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'env-config.js'));
+  
+  const filePath = path.join(distPath, 'env-config.js');
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    // Generate the file on the fly if it doesn't exist
+    const content = `
+      window.ENV = {
+        VITE_API_URL: "https://charterhub-api.onrender.com",
+        VITE_PHP_API_URL: "https://charterhub-api.onrender.com",
+        VITE_FRONTEND_URL: "https://charter-hub.vercel.app",
+        VITE_ADMIN_URL: "https://admin.yachtstory.be",
+        VITE_ALLOWED_ORIGINS: "https://charter-hub.vercel.app,https://admin.yachtstory.be,https://app.yachtstory.be"
+      };
+      console.log('Environment config loaded');
+    `;
+    res.send(content);
+  }
 });
 
+// Special handling for redirect.js
 app.get('/redirect.js', (req, res) => {
   res.set('Content-Type', 'application/javascript; charset=utf-8');
-  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'redirect.js'));
+  
+  const filePath = path.join(distPath, 'redirect.js');
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    // Generate the file on the fly if it doesn't exist
+    const content = `
+      // Redirect script for admin domain
+      (function() {
+        const hostname = window.location.hostname;
+        const pathname = window.location.pathname;
+        
+        if (hostname === 'admin.yachtstory.be' && pathname === '/') {
+          window.location.href = '/admin';
+        }
+      })();
+    `;
+    res.send(content);
+  }
 });
 
-// Serve frontend files
-app.use('/frontend', express.static(path.join(__dirname, 'frontend', 'dist')));
+// Static file serving
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    } else if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    }
+  }
+}));
 
-// Fallback to index.html for SPA routes
+// Fallback for SPA routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.listen(port, () => {
-  console.log(`Root server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 }); 

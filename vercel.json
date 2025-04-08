@@ -1,12 +1,9 @@
 {
+  "version": 2,
+  "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
-  "trailingSlash": false,
-  "redirects": [
-    { "source": "/", "destination": "/frontend", "permanent": false }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/frontend/$1" }
-  ],
+  "installCommand": "npm install --no-fund --legacy-peer-deps",
+  "framework": null,
   "headers": [
     {
       "source": "/(env-config|redirect)\\.js",
@@ -22,7 +19,7 @@
       ]
     }
   ],
-  "buildCommand": "cd frontend && npm install vite@5.4.14 @vitejs/plugin-react@4.1.1 cors express http-proxy-middleware --no-fund && npm run vercel-build",
-  "installCommand": "cd frontend && npm install --no-fund",
-  "framework": null
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 } 
