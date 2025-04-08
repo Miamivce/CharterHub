@@ -12,25 +12,26 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
-// Create standalone JavaScript files instead of relying on routing
-console.log('Creating standalone JavaScript files');
+// Create standalone JavaScript files first, before any potential build failures
+console.log('Creating critical JavaScript files');
 
-// Create a proper redirect.js file
+// Create a proper redirect.js file as an independent file with correct JavaScript syntax
 const redirectJs = `
-// Redirect script
+// Redirect script for CharterHub
 (function() {
   // Only redirect from root path to /admin
   if (window.location.pathname === '/') {
+    console.log('Redirecting to admin dashboard');
     window.location.href = '/admin';
   }
 })();
 `;
 fs.writeFileSync(path.join(distDir, 'redirect.js'), redirectJs);
-console.log('Created redirect.js');
+console.log('Created redirect.js successfully');
 
 // Create env-config.js to ensure environment variables are available
 const envConfig = `
-// Environment variables for the frontend
+// Environment variables for CharterHub frontend
 window.ENV = ${JSON.stringify(
   Object.keys(process.env)
     .filter(key => key.startsWith('VITE_'))
@@ -59,9 +60,11 @@ window.import.meta.env = ${JSON.stringify(
   null,
   2
 )};
+
+console.log('Environment config loaded successfully');
 `;
 fs.writeFileSync(path.join(distDir, 'env-config.js'), envConfig);
-console.log('Created env-config.js');
+console.log('Created env-config.js successfully');
 
 // Create a minimal Vite config file in CJS format
 console.log('Creating minimal Vite config');

@@ -5,39 +5,30 @@
   "outputDirectory": "frontend/dist",
   "headers": [
     {
-      "source": "/(.*)\\.(js|css|png|jpg|svg)$",
+      "source": "/(.*)\\.(js)$",
       "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(env-config|redirect)\\.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(css)$",
+      "headers": [
+        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/(.*)\\.js$",
+      "source": "/(.*)\\.(png|jpg|jpeg|svg|gif)$",
       "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.css$",
-      "headers": [
-        { "key": "Content-Type", "value": "text/css; charset=utf-8" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.png$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/png" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.jpg$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/jpeg" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.svg$",
-      "headers": [
-        { "key": "Content-Type", "value": "image/svg+xml" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
@@ -45,8 +36,7 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" },
-        { "key": "Access-Control-Max-Age", "value": "86400" }
+        { "key": "Access-Control-Allow-Headers", "value": "X-Requested-With, Content-Type, Accept, X-CSRF-Token, Authorization" }
       ]
     }
   ],
@@ -67,7 +57,7 @@
     "VITE_API_URL": "https://charterhub-api.onrender.com",
     "VITE_PHP_API_URL": "https://charterhub-api.onrender.com",
     "NODE_ENV": "production",
-    "VITE_ALLOWED_ORIGINS": "https://charter-cfce3n0h6-maurits-s-projects.vercel.app,https://app.yachtstory.be",
-    "VITE_FRONTEND_URL": "https://charter-cfce3n0h6-maurits-s-projects.vercel.app"
+    "VITE_ALLOWED_ORIGINS": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app,https://app.yachtstory.be",
+    "VITE_FRONTEND_URL": "https://charter-p2f5lp7ws-maurits-s-projects.vercel.app"
   }
 } 
