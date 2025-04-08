@@ -56,7 +56,7 @@ if (fs.existsSync(publicDir)) {
             fs.writeFileSync(destPath, content);
             
             // Fix permissions to ensure readable by all
-            fs.chmodSync(destPath, 0644);
+            fs.chmodSync(destPath, 0o644);
             
             // Log success with file size
             const stats = fs.statSync(destPath);
@@ -879,4 +879,232 @@ function copyImages() {
       copyFile(imagePath, destPath);
     }
   }
+}
+
+/**
+ * Creates a fallback HTML file for when the build process fails
+ * @returns {string} HTML content
+ */
+function createFallbackHTML() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CharterHub Admin Dashboard</title>
+  <link rel="stylesheet" href="/images/fallback.css">
+  <script src="/env-config.js"></script>
+  <script src="/csrf-helper.js"></script>
+  <script src="/file-checker.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+      padding: 0 20px;
+      z-index: 1;
+    }
+    .logo {
+      width: 200px;
+      height: auto;
+      margin-bottom: 2rem;
+      opacity: 0;
+    }
+    .logo.loaded {
+      opacity: 1;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #fff;
+    }
+    p {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+      color: #e0e0e0;
+      line-height: 1.6;
+    }
+    .spinner {
+      margin: 2rem auto;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0078d4;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px 5px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    .btn:hover {
+      background-color: #0069b9;
+    }
+    .btn-secondary {
+      background-color: transparent;
+      border: 2px solid white;
+    }
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    #image-diagnostics {
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      margin-top: 2rem;
+      padding: 1.5rem;
+      max-width: 100%;
+      overflow-x: auto;
+      text-align: left;
+      display: none;
+    }
+    #image-diagnostics h3 {
+      margin-bottom: 1rem;
+      color: #fff;
+    }
+    #image-diagnostics p {
+      margin-bottom: 0.5rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    .buttons {
+      margin-top: 2rem;
+    }
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div id="background" class="background-container"></div>
+  
+  <div class="container">
+    <img id="logo" class="logo progressive-img" src="/images/logo-placeholder.svg" alt="CharterHub Logo">
+    <h1>CharterHub Admin Dashboard</h1>
+    <p>Loading your dashboard experience. You'll be redirected to the admin interface momentarily.</p>
+    <div class="spinner"></div>
+    <div class="buttons">
+      <a href="/admin" class="btn">Go to Admin Dashboard</a>
+      <button id="debug-btn" class="btn btn-secondary">Diagnostics</button>
+    </div>
+    <div id="image-diagnostics"></div>
+  </div>
+  
+  <div class="footer">CharterHub v1.0</div>
+
+  <script>
+    // Attempt to load background image from multiple paths
+    document.addEventListener('DOMContentLoaded', function() {
+      const bgPaths = [
+        '/images/boat-background.jpg',
+        '/images/background.jpg',
+        '/images/adminbackground.jpg',
+        '/assets/boat-background.jpg',
+        '/assets/background.jpg',
+        '/boat-background.jpg',
+        '/background.jpg'
+      ];
+      
+      const logoPaths = [
+        '/images/logo.png',
+        '/images/Logo-Yachtstory-WHITE.png',
+        '/assets/logo.png',
+        '/logo.png'
+      ];
+      
+      // Try loading background image
+      function tryLoadingBackground(index) {
+        if (index >= bgPaths.length) {
+          console.log('Failed to load any background image');
+          // If all fail, at least show the background color
+          document.getElementById('background').classList.add('loaded');
+          return;
+        }
+        
+        const path = bgPaths[index];
+        const img = new Image();
+        
+        img.onload = function() {
+          console.log('Successfully loaded background from:', path);
+          const bgElement = document.getElementById('background');
+          bgElement.style.backgroundImage = \`url('\${path}')\`;
+          bgElement.classList.add('loaded');
+        };
+        
+        img.onerror = function() {
+          console.log('Failed to load background from:', path);
+          tryLoadingBackground(index + 1);
+        };
+        
+        img.src = path;
+      }
+      
+      // Try loading logo
+      function tryLoadingLogo(index) {
+        if (index >= logoPaths.length) {
+          console.log('Failed to load any logo image');
+          // If all fail, at least show the logo we already have
+          document.getElementById('logo').classList.add('loaded');
+          return;
+        }
+        
+        const path = logoPaths[index];
+        const img = new Image();
+        
+        img.onload = function() {
+          console.log('Successfully loaded logo from:', path);
+          const logoElement = document.getElementById('logo');
+          logoElement.src = path;
+          logoElement.classList.add('loaded');
+        };
+        
+        img.onerror = function() {
+          console.log('Failed to load logo from:', path);
+          tryLoadingLogo(index + 1);
+        };
+        
+        img.src = path;
+      }
+      
+      // Start loading images
+      tryLoadingBackground(0);
+      tryLoadingLogo(0);
+      
+      // Redirect to admin dashboard after 5 seconds
+      setTimeout(function() {
+        window.location.href = '/admin';
+      }, 5000);
+    });
+  </script>
+  
+  <script src="/redirect.js"></script>
+</body>
+</html>`;
 } 
