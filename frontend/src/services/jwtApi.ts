@@ -720,7 +720,10 @@ const jwtApi = {
         email: data.email,
         password: data.password,
         first_name: data.firstName,
-        last_name: data.lastName
+        last_name: data.lastName,
+        // Also include the camelCase versions that the backend is actually expecting
+        firstName: data.firstName,
+        lastName: data.lastName
       };
 
       console.log('[jwtApi] Trying full registration with minimal data:', {
