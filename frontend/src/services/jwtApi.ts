@@ -682,58 +682,72 @@ const jwtApi = {
         throw new ApiError('First name and last name are required', 400)
       }
 
-      // Convert from camelCase to snake_case for API
-      // Remove the username generation that was causing problems
-      const requestData = {
+      console.log('[jwtApi] Attempting simplified registration flow to diagnose issues');
+
+      // Try the minimal registration endpoint first
+      try {
+        const minimalResponse = await apiClient.post('/auth/minimal-register.php', {
+          email: data.email,
+          test: true
+        });
+        
+        console.log('[jwtApi] Minimal registration endpoint response:', minimalResponse.data);
+        
+        if (minimalResponse.data.success) {
+          console.log('[jwtApi] Minimal registration endpoint working correctly');
+          
+          // Try the debug endpoint next
+          try {
+            const debugResponse = await apiClient.post('/auth/debug-register.php', {
+              email: data.email,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              test: true
+            });
+            
+            console.log('[jwtApi] Debug registration endpoint response:', debugResponse.data);
+          } catch (debugError) {
+            console.error('[jwtApi] Debug endpoint error:', debugError);
+          }
+        }
+      } catch (minimalError) {
+        console.error('[jwtApi] Minimal endpoint error:', minimalError);
+      }
+
+      // If we get this far, try using a super minimal registration request
+      // with just the absolute required fields
+      const minimalRequestData = {
         email: data.email,
         password: data.password,
         first_name: data.firstName,
-        last_name: data.lastName,
-        phone_number: data.phoneNumber || '', // Ensuring phone_number is properly set
-        company: data.company || '',
-        role: data.role || 'client',
-        // Include raw firstName and lastName fields to ensure compatibility
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phoneNumber: data.phoneNumber || '', // Keep this for consistency
-        // username field is explicitly omitted to prevent DB errors
-        debug_mode: true // Enable debug mode
-      }
+        last_name: data.lastName
+      };
 
-      console.log('[jwtApi] Registering user with data:', {
-        ...requestData,
-        password: '******', // Don't log actual password
-      })
+      console.log('[jwtApi] Trying full registration with minimal data:', {
+        ...minimalRequestData,
+        password: '******'
+      });
 
-      try {
-        // First try to hit our debug endpoint to test connectivity
-        const debugResponse = await apiClient.post('/auth/debug-register.php', { test: true })
-        console.log('[jwtApi] Debug endpoint response:', debugResponse.data)
-      } catch (debugError) {
-        console.error('[jwtApi] Debug endpoint error:', debugError)
-        // Continue with registration attempt anyway
-      }
+      const response = await apiClient.post('/auth/register.php', minimalRequestData);
 
-      const response = await apiClient.post('/auth/register.php', requestData)
-
-      console.log('[jwtApi] Registration response:', response.data)
+      console.log('[jwtApi] Registration response:', response.data);
 
       if (response.data.success) {
         // SECURITY FIX: Never store tokens or authenticate after registration
         // Even if the backend returns a token, don't store it
 
         // Explicitly clear any existing tokens to prevent accidental login
-        TokenStorage.clearAllData()
+        TokenStorage.clearAllData();
 
         // If user data is returned, just return it without storing it
         if (response.data.user) {
-          return transformUserData(response.data.user)
+          return transformUserData(response.data.user);
         }
 
         // Otherwise create a minimal user object from registration data
         // but don't store it in TokenStorage
         const userRole: 'admin' | 'client' =
-          data.role === 'admin' || data.role === 'client' ? data.role : 'client'
+          data.role === 'admin' || data.role === 'client' ? data.role : 'client';
 
         return {
           id: 0, // This will be updated when they log in
@@ -746,14 +760,14 @@ const jwtApi = {
           role: userRole,
           verified: false,
           permissions: {},
-        }
+        };
       }
 
-      console.error('[jwtApi] Registration failed:', response.data)
-      throw new ApiError(response.data.message || 'Registration failed', response.status || 500)
+      console.error('[jwtApi] Registration failed:', response.data);
+      throw new ApiError(response.data.message || 'Registration failed', response.status || 500);
     } catch (error) {
-      console.error('[jwtApi] Registration error details:', error)
-      return Promise.reject(error)
+      console.error('[jwtApi] Registration error details:', error);
+      return Promise.reject(error);
     }
   },
 
