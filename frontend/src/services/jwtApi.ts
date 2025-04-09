@@ -697,6 +697,7 @@ const jwtApi = {
         lastName: data.lastName,
         phoneNumber: data.phoneNumber || '', // Keep this for consistency
         // username field is explicitly omitted to prevent DB errors
+        debug_mode: true // Enable debug mode
       }
 
       console.log('[jwtApi] Registering user with data:', {
@@ -704,7 +705,18 @@ const jwtApi = {
         password: '******', // Don't log actual password
       })
 
+      try {
+        // First try to hit our debug endpoint to test connectivity
+        const debugResponse = await apiClient.post('/auth/debug-register.php', { test: true })
+        console.log('[jwtApi] Debug endpoint response:', debugResponse.data)
+      } catch (debugError) {
+        console.error('[jwtApi] Debug endpoint error:', debugError)
+        // Continue with registration attempt anyway
+      }
+
       const response = await apiClient.post('/auth/register.php', requestData)
+
+      console.log('[jwtApi] Registration response:', response.data)
 
       if (response.data.success) {
         // SECURITY FIX: Never store tokens or authenticate after registration
@@ -737,8 +749,10 @@ const jwtApi = {
         }
       }
 
-      throw new ApiError('Registration failed', 500)
+      console.error('[jwtApi] Registration failed:', response.data)
+      throw new ApiError(response.data.message || 'Registration failed', response.status || 500)
     } catch (error) {
+      console.error('[jwtApi] Registration error details:', error)
       return Promise.reject(error)
     }
   },
