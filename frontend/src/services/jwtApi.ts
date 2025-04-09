@@ -682,6 +682,8 @@ const jwtApi = {
         throw new ApiError('First name and last name are required', 400)
       }
 
+      console.log('[jwtApi] Attempting simplified registration with minimal-register.php');
+
       // Preparing data for minimal registration endpoint
       const requestData = {
         email: data.email,
@@ -691,32 +693,34 @@ const jwtApi = {
         phoneNumber: data.phoneNumber || '', 
         company: data.company || '',
         role: data.role || 'client',
-      }
+      };
 
       console.log('[jwtApi] Registering user with data:', {
         ...requestData,
         password: '******', // Don't log actual password
-      })
+      });
 
-      // Use the minimal-register.php endpoint instead
-      const response = await apiClient.post('/auth/minimal-register.php', requestData)
+      // Use the minimal-register.php endpoint
+      const response = await apiClient.post('/auth/minimal-register.php', requestData);
+      
+      console.log('[jwtApi] Registration response:', response.data);
 
       if (response.data.success) {
         // SECURITY FIX: Never store tokens or authenticate after registration
         // Even if the backend returns a token, don't store it
 
         // Explicitly clear any existing tokens to prevent accidental login
-        TokenStorage.clearAllData()
+        TokenStorage.clearAllData();
 
         // If user data is returned, just return it without storing it
         if (response.data.user) {
-          return transformUserData(response.data.user)
+          return transformUserData(response.data.user);
         }
 
         // Otherwise create a minimal user object from registration data
         // but don't store it in TokenStorage
         const userRole: 'admin' | 'client' =
-          data.role === 'admin' || data.role === 'client' ? data.role : 'client'
+          data.role === 'admin' || data.role === 'client' ? data.role : 'client';
 
         return {
           id: response.data.user_id || 0, // Use the returned user ID if available
@@ -729,12 +733,14 @@ const jwtApi = {
           role: userRole,
           verified: true, // User is automatically verified with minimal registration
           permissions: {},
-        }
+        };
       }
 
-      throw new ApiError('Registration failed', 500)
+      console.error('[jwtApi] Registration failed:', response.data);
+      throw new ApiError(response.data.message || 'Registration failed', response.status || 500);
     } catch (error) {
-      return Promise.reject(error)
+      console.error('[jwtApi] Registration error details:', error);
+      return Promise.reject(error);
     }
   },
 
