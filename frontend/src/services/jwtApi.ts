@@ -697,6 +697,7 @@ const jwtApi = {
         lastName: data.lastName,
         // Add explicit logging to track phone number value
         phoneNumber: data.phoneNumber || '', // Keep this for logging
+        // IMPORTANT: username is removed from this object - DB doesn't have the column
       }
 
       console.log('[jwtApi] Registering user with data:', {
