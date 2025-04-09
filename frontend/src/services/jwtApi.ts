@@ -695,15 +695,13 @@ const jwtApi = {
         // Include raw firstName and lastName fields to ensure compatibility
         firstName: data.firstName,
         lastName: data.lastName,
-        // Add explicit logging to track phone number value
-        phoneNumber: data.phoneNumber || '', // Keep this for logging
-        // IMPORTANT: username is removed from this object - DB doesn't have the column
+        phoneNumber: data.phoneNumber || '', // Keep this for consistency
+        // username field is explicitly omitted to prevent DB errors
       }
 
       console.log('[jwtApi] Registering user with data:', {
         ...requestData,
         password: '******', // Don't log actual password
-        phone_number: requestData.phone_number, // Log this specifically to debug
       })
 
       const response = await apiClient.post('/auth/register.php', requestData)
