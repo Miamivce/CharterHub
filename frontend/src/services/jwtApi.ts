@@ -682,20 +682,13 @@ const jwtApi = {
         throw new ApiError('First name and last name are required', 400)
       }
 
-      // Generate username from firstName and lastName (lowercase, no spaces)
-      const username = `${data.firstName.toLowerCase()}${data.lastName.toLowerCase()}`.replace(
-        /\s+/g,
-        ''
-      )
-
-      // Convert from camelCase to snake_case for API and add username
-      // Make sure field names exactly match what the backend expects
+      // Convert from camelCase to snake_case for API
+      // Remove the username generation that was causing problems
       const requestData = {
         email: data.email,
         password: data.password,
         first_name: data.firstName,
         last_name: data.lastName,
-        username: username,
         phone_number: data.phoneNumber || '', // Ensuring phone_number is properly set
         company: data.company || '',
         role: data.role || 'client',
