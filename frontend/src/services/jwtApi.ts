@@ -682,37 +682,24 @@ const jwtApi = {
         throw new ApiError('First name and last name are required', 400)
       }
 
-      // Generate username from firstName and lastName (lowercase, no spaces)
-      const username = `${data.firstName.toLowerCase()}${data.lastName.toLowerCase()}`.replace(
-        /\s+/g,
-        ''
-      )
-
-      // Convert from camelCase to snake_case for API and add username
-      // Make sure field names exactly match what the backend expects
+      // Preparing data for minimal registration endpoint
       const requestData = {
         email: data.email,
         password: data.password,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        username: username,
-        phone_number: data.phoneNumber || '', // Ensuring phone_number is properly set
-        company: data.company || '',
-        role: data.role || 'client',
-        // Include raw firstName and lastName fields to ensure compatibility
         firstName: data.firstName,
         lastName: data.lastName,
-        // Add explicit logging to track phone number value
-        phoneNumber: data.phoneNumber || '', // Keep this for logging
+        phoneNumber: data.phoneNumber || '', 
+        company: data.company || '',
+        role: data.role || 'client',
       }
 
       console.log('[jwtApi] Registering user with data:', {
         ...requestData,
         password: '******', // Don't log actual password
-        phone_number: requestData.phone_number, // Log this specifically to debug
       })
 
-      const response = await apiClient.post('/auth/register.php', requestData)
+      // Use the minimal-register.php endpoint instead
+      const response = await apiClient.post('/auth/minimal-register.php', requestData)
 
       if (response.data.success) {
         // SECURITY FIX: Never store tokens or authenticate after registration
@@ -732,7 +719,7 @@ const jwtApi = {
           data.role === 'admin' || data.role === 'client' ? data.role : 'client'
 
         return {
-          id: 0, // This will be updated when they log in
+          id: response.data.user_id || 0, // Use the returned user ID if available
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
@@ -740,7 +727,7 @@ const jwtApi = {
           phoneNumber: data.phoneNumber || '',
           company: data.company || '',
           role: userRole,
-          verified: false,
+          verified: true, // User is automatically verified with minimal registration
           permissions: {},
         }
       }
