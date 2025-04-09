@@ -712,18 +712,16 @@ const jwtApi = {
         // Explicitly clear any existing tokens to prevent accidental login
         TokenStorage.clearAllData();
 
-        // If user data is returned, just return it without storing it
-        if (response.data.user) {
-          return transformUserData(response.data.user);
-        }
-
-        // Otherwise create a minimal user object from registration data
+        // Skip verification completely - remove development verification token generation
+        // Users are already verified in the database (verified=1)
+        
+        // Create a minimal user object from registration data
         // but don't store it in TokenStorage
         const userRole: 'admin' | 'client' =
           data.role === 'admin' || data.role === 'client' ? data.role : 'client';
 
         return {
-          id: response.data.user_id || 0, // Use the returned user ID if available
+          id: response.data.user_id || 0,
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
@@ -731,7 +729,7 @@ const jwtApi = {
           phoneNumber: data.phoneNumber || '',
           company: data.company || '',
           role: userRole,
-          verified: true, // User is automatically verified with minimal registration
+          verified: true, // User is automatically verified
           permissions: {},
         };
       }

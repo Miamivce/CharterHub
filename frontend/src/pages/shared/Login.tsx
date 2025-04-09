@@ -933,26 +933,19 @@ export function Login() {
       await jwtApi.register(registerData)
       console.log('[Login] Registration successful')
 
-      // Clean up any old development verification data before generating new ones
-      // Use false to ensure we clear all old data before creating new verification tokens
-      cleanupDevVerificationData(false)
+      // Clean up any old development verification data
+      cleanupDevVerificationData(true)
+      console.log('[Login] Cleaning up development verification data')
 
-      // In development environment, create a verification link for testing
-      const verificationUrl = buildVerificationUrl(registerData.email)
-      console.log('[Login] Generated verification URL:', verificationUrl)
-
-      // Set the verification link to trigger the popup
-      setVerificationLink(verificationUrl)
-
-      // Store the registered email in session storage for reference
-      sessionStorage.setItem('registeredEmail', registerData.email)
-
-      // Set flag to clear form after registration
-      sessionStorage.setItem('clearRegistrationForm', 'true')
-
+      // Skip verification link generation since users are auto-verified now
+      // The minimal-register.php endpoint sets verified=1 in the database
+      
       // Set the registration status to success
       setRegistrationStatus('success')
       setIsRegisterLoading(false)
+      
+      // Switch directly to login tab for the user to log in
+      setActiveTab('login')
     } catch (error: any) {
       console.error('Registration error:', error)
       setRegisterError(error.message || 'Registration failed')
