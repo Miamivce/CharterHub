@@ -340,6 +340,33 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           hasUser: !!authState.user,
         })
 
+        // Special handling for token exists but no user data scenario
+        if (authState.tokenExists && !authState.tokenExpired && !authState.user) {
+          console.log('[JWTAuthContext] Valid token exists but no user data, attempting to fetch user data')
+          try {
+            // Try to get user data from API since we have a valid token
+            const user = await jwtApi.getCurrentUser()
+            if (user && user.id) {
+              console.log('[JWTAuthContext] Successfully retrieved user data with valid token')
+              // Store the user data
+              TokenStorage.storeUserData(user)
+              
+              if (isMounted.current) {
+                dispatch({
+                  type: AUTH_TYPES.INITIALIZE,
+                  payload: {
+                    isAuthenticated: true,
+                    user,
+                  },
+                })
+                return
+              }
+            }
+          } catch (userError) {
+            console.error('[JWTAuthContext] Failed to fetch user data despite valid token:', userError)
+          }
+        }
+
         // If not authenticated according to our validation, initialize as unauthenticated
         if (!authState.isAuthenticated) {
           if (isMounted.current) {

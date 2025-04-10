@@ -1199,7 +1199,22 @@ export const validateAuthState = (): {
     tokenExpired = now > expiryTime
   }
 
-  const userExists = !!userData && !!userData.id
+  // Enhanced userExists check: Try both stored userData and re-fetch if needed
+  let userExists = !!userData && !!userData.id
+  
+  // If token is valid but no user data, try to retrieve it from storage again
+  // This helps with page refreshes where user data might not be immediately available
+  if (tokenExists && !tokenExpired && !userExists) {
+    // Attempt to get from storage one more time
+    const retryUserData = TokenStorage.getUserData()
+    userExists = !!retryUserData && !!retryUserData.id
+    
+    // Log the retry attempt
+    console.log('[jwtApi] Token valid but no user data, retry retrieval:', { 
+      success: userExists, 
+      hasData: !!retryUserData 
+    })
+  }
 
   // If token is expired, trigger cleanup
   if (tokenExists && tokenExpired) {
@@ -1209,7 +1224,7 @@ export const validateAuthState = (): {
 
   return {
     isAuthenticated: tokenExists && !tokenExpired && userExists,
-    user: userExists ? userData : null,
+    user: userExists ? (userData || TokenStorage.getUserData()) : null,
     tokenExists,
     tokenExpired,
   }
