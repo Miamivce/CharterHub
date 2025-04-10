@@ -113,19 +113,63 @@ const getStorageType = (): Storage => {
 
 const TokenStorage = {
   getToken: (): string | null => {
-    return getStorageType().getItem(TOKEN_KEY)
+    // Try the primary storage first
+    const storage = getStorageType()
+    let token = storage.getItem(TOKEN_KEY)
+    
+    // If not found, try the alternate storage
+    if (!token || token === 'null' || token === 'undefined') {
+      const altStorage = storage === localStorage ? sessionStorage : localStorage
+      token = altStorage.getItem(TOKEN_KEY)
+      
+      // If found in alternate storage, move it to primary
+      if (token && token !== 'null' && token !== 'undefined') {
+        console.log('[TokenStorage] Found token in alternate storage, moving to primary')
+        storage.setItem(TOKEN_KEY, token)
+      }
+    }
+    
+    // Final sanity check
+    if (token === 'null' || token === 'undefined') {
+      return null
+    }
+    
+    return token
   },
 
   getTokenExpiry: (): number | null => {
-    const expiry = getStorageType().getItem(TOKEN_EXPIRY_KEY)
-    if (!expiry) return null
-
-    try {
-      return parseInt(expiry, 10)
-    } catch (e) {
-      console.error('[TokenStorage] Error parsing token expiry:', e)
-      return null
+    // Try the primary storage first
+    const storage = getStorageType()
+    const expiry = storage.getItem(TOKEN_EXPIRY_KEY)
+    
+    // If expiry found in primary storage
+    if (expiry) {
+      try {
+        const parsed = parseInt(expiry, 10)
+        return isNaN(parsed) ? null : parsed
+      } catch (e) {
+        console.error('[TokenStorage] Error parsing token expiry:', e)
+      }
     }
+    
+    // If not in primary storage, try the alternate
+    const altStorage = storage === localStorage ? sessionStorage : localStorage
+    const altExpiry = altStorage.getItem(TOKEN_EXPIRY_KEY)
+    
+    if (altExpiry) {
+      try {
+        // Move to primary storage for consistency
+        const parsed = parseInt(altExpiry, 10)
+        if (!isNaN(parsed)) {
+          storage.setItem(TOKEN_EXPIRY_KEY, altExpiry)
+          return parsed
+        }
+      } catch (e) {
+        console.error('[TokenStorage] Error parsing alternate token expiry:', e)
+      }
+    }
+    
+    return null
   },
 
   storeToken: (token: string, expiresIn: number, rememberMe?: boolean): void => {
@@ -144,6 +188,9 @@ const TokenStorage = {
     const otherStorage = storage === localStorage ? sessionStorage : localStorage
     otherStorage.removeItem(TOKEN_KEY)
     otherStorage.removeItem(TOKEN_EXPIRY_KEY)
+    
+    // Log token storage for debugging
+    console.log(`[TokenStorage] Token stored in ${storage === localStorage ? 'localStorage' : 'sessionStorage'}, expires: ${new Date(expiryTime).toISOString()}`)
   },
 
   storeUserData: (userData: User): void => {
@@ -194,7 +241,22 @@ const TokenStorage = {
   },
 
   getUserData: (): User | null => {
-    const data = getStorageType().getItem(USER_DATA_KEY)
+    // Try the primary storage first
+    const storage = getStorageType()
+    let data = storage.getItem(USER_DATA_KEY)
+    
+    // If not found in primary, try alternate
+    if (!data) {
+      const altStorage = storage === localStorage ? sessionStorage : localStorage
+      data = altStorage.getItem(USER_DATA_KEY)
+      
+      // If found in alternate, move to primary
+      if (data) {
+        console.log('[TokenStorage] Found user data in alternate storage, moving to primary')
+        storage.setItem(USER_DATA_KEY, data)
+      }
+    }
+    
     if (!data) return null
 
     try {
@@ -224,12 +286,15 @@ const TokenStorage = {
   },
 
   clearToken: (): void => {
-    getStorageType().removeItem(TOKEN_KEY)
-    getStorageType().removeItem(TOKEN_EXPIRY_KEY)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(TOKEN_EXPIRY_KEY)
+    sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(TOKEN_EXPIRY_KEY)
   },
 
   clearUserData: (): void => {
-    getStorageType().removeItem(USER_DATA_KEY)
+    localStorage.removeItem(USER_DATA_KEY)
+    sessionStorage.removeItem(USER_DATA_KEY)
   },
 
   clearAllData: (): void => {
@@ -1173,60 +1238,83 @@ export const validateAuthState = (): {
   tokenExists: boolean
   tokenExpired: boolean
 } => {
-  const token = TokenStorage.getToken()
-  const tokenExpiry = TokenStorage.getTokenExpiry()
-  const userData = TokenStorage.getUserData()
+  try {
+    // Get token and token expiry with enhanced storage checks
+    const token = TokenStorage.getToken()
+    const tokenExpiry = TokenStorage.getTokenExpiry()
+    const userData = TokenStorage.getUserData()
 
-  const tokenExists = !!token
+    const tokenExists = !!token && token !== 'null' && token !== 'undefined'
 
-  // Improved token expiration check
-  let tokenExpired = true
-  if (tokenExpiry) {
-    // Add 10-second safety margin (tokenExpiry is already a number from getTokenExpiry)
-    const safetyMargin = 10000 // 10 seconds in milliseconds
-    const now = Date.now()
-    const expiryTime = tokenExpiry - safetyMargin
+    // Improved token expiration check
+    let tokenExpired = true
+    if (tokenExists && tokenExpiry) {
+      // Add 10-second safety margin for expiry
+      const safetyMargin = 10000 // 10 seconds in milliseconds
+      const now = Date.now()
+      const expiryTime = tokenExpiry - safetyMargin
 
-    // Log expiry times for debugging
-    console.log('[jwtApi] Token expiry check:', {
-      now: new Date(now).toISOString(),
-      expiry: new Date(tokenExpiry).toISOString(),
-      expiryWithSafetyMargin: new Date(expiryTime).toISOString(),
-      hasExpired: now > expiryTime,
-      timeRemainingMs: expiryTime - now,
-    })
+      // Log expiry times for debugging
+      console.log('[jwtApi] Token expiry check:', {
+        now: new Date(now).toISOString(),
+        expiry: new Date(tokenExpiry).toISOString(),
+        expiryWithSafetyMargin: new Date(expiryTime).toISOString(),
+        hasExpired: now > expiryTime,
+        timeRemainingMs: expiryTime - now,
+      })
 
-    tokenExpired = now > expiryTime
-  }
+      tokenExpired = now > expiryTime
+    }
 
-  // Enhanced userExists check: Try both stored userData and re-fetch if needed
-  let userExists = !!userData && !!userData.id
-  
-  // If token is valid but no user data, try to retrieve it from storage again
-  // This helps with page refreshes where user data might not be immediately available
-  if (tokenExists && !tokenExpired && !userExists) {
-    // Attempt to get from storage one more time
-    const retryUserData = TokenStorage.getUserData()
-    userExists = !!retryUserData && !!retryUserData.id
+    // Enhanced userExists check: Try both stored userData and re-fetch if needed
+    let userExists = !!userData && !!userData.id
     
-    // Log the retry attempt
-    console.log('[jwtApi] Token valid but no user data, retry retrieval:', { 
-      success: userExists, 
-      hasData: !!retryUserData 
+    // If token is valid but no user data, try to retrieve it from storage again
+    // This helps with page refreshes where user data might not be immediately available
+    if (tokenExists && !tokenExpired && !userExists) {
+      // Attempt to get from storage one more time
+      const retryUserData = TokenStorage.getUserData()
+      userExists = !!retryUserData && !!retryUserData.id
+      
+      // Log the retry attempt
+      console.log('[jwtApi] Token valid but no user data, retry retrieval:', { 
+        success: userExists, 
+        hasData: !!retryUserData 
+      })
+    }
+
+    // If token is expired, trigger cleanup
+    if (tokenExists && tokenExpired) {
+      console.log('[jwtApi] Token is expired, triggering cleanup event')
+      window.dispatchEvent(new CustomEvent('jwt:tokenExpired'))
+    }
+
+    const isAuthenticated = tokenExists && !tokenExpired && userExists
+    
+    // Log the final authentication state for debugging
+    console.log('[jwtApi] Authentication state validation result:', {
+      isAuthenticated,
+      tokenExists,
+      tokenExpired,
+      userExists,
+      tokenLength: token ? token.length : 0,
     })
-  }
 
-  // If token is expired, trigger cleanup
-  if (tokenExists && tokenExpired) {
-    console.log('[jwtApi] Token is expired, triggering cleanup event')
-    window.dispatchEvent(new CustomEvent('jwt:tokenExpired'))
-  }
-
-  return {
-    isAuthenticated: tokenExists && !tokenExpired && userExists,
-    user: userExists ? (userData || TokenStorage.getUserData()) : null,
-    tokenExists,
-    tokenExpired,
+    return {
+      isAuthenticated,
+      user: userExists ? userData : null,
+      tokenExists,
+      tokenExpired,
+    }
+  } catch (error) {
+    console.error('[jwtApi] Error validating auth state:', error)
+    // Default to unauthenticated state on error
+    return {
+      isAuthenticated: false,
+      user: null,
+      tokenExists: false,
+      tokenExpired: true
+    }
   }
 }
 
