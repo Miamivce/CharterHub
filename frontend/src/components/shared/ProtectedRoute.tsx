@@ -96,31 +96,54 @@ export const ProtectedRoute = ({
     section,
   ])
 
-  // Add a token verification function that doesn't depend on the route state
+  // Add this improved token verification logic that attempts API recovery
   const verifyToken = useCallback(async () => {
     try {
       // Check if we have a token in storage
-      const token = TokenStorage.getToken()
+      const token = TokenStorage.getToken() || TokenService.getToken()
       if (!token) {
         console.log(`[ProtectedRoute ${section}] No token found in storage`)
         return false
       }
 
-      // Validate token storage state
-      const validation = validateTokenStorage()
-      if (!validation.isValid) {
-        console.log(`[ProtectedRoute ${section}] Token validation failed:`, validation)
-        return false
+      // First, check if we have valid user data in storage
+      const userData = TokenService.getUserData() || TokenStorage.getUserData()
+      if (userData && userData.id) {
+        console.log(`[ProtectedRoute ${section}] Found valid user data with token, auth considered valid`)
+        return true
       }
 
-      console.log(`[ProtectedRoute ${section}] Token validation successful, checking with API`)
+      console.log(`[ProtectedRoute ${section}] Token exists but no user data, attempting to retrieve from API`)
+
+      // Try to get user data from API if we have a token but no user data
+      try {
+        const apiUser = await jwtApi.getCurrentUser()
+        if (apiUser && apiUser.id) {
+          console.log(`[ProtectedRoute ${section}] Successfully retrieved user data from API`)
+          // Store the user data for future use
+          TokenService.storeUserData(apiUser)
+          return true
+        }
+      } catch (apiError) {
+        console.error(`[ProtectedRoute ${section}] API user retrieval failed:`, apiError)
+        // Continue with validation attempt even if API fails
+      }
+
+      // As a fallback, try the validation functions
+      const validation = validateTokenStorage()
+      if (validation.isValid) {
+        console.log(`[ProtectedRoute ${section}] Token validation successful`)
+        return true
+      }
+
+      console.log(`[ProtectedRoute ${section}] Token validation failed:`, validation)
 
       // Add a timeout to prevent infinite waiting
       const timeoutPromise = new Promise<boolean>((resolve) => {
         setTimeout(() => {
           console.log(`[ProtectedRoute ${section}] Verification timed out`)
           resolve(false)
-        }, 10000) // 10 second timeout
+        }, 5000) // 5 second timeout
       })
 
       // Race the API call against the timeout

@@ -137,9 +137,19 @@ export const TokenService = {
         }
       }
       
-      if (!userData) return null;
+      if (!userData) {
+        console.warn('[TokenService] No user data found in any storage location');
+        return null;
+      }
       
-      return JSON.parse(userData);
+      try {
+        return JSON.parse(userData);
+      } catch (parseError) {
+        console.error('[TokenService] Failed to parse user data:', parseError);
+        // Clean up invalid data
+        storage.removeItem(USER_DATA_KEY);
+        return null;
+      }
     } catch (error) {
       console.error('[TokenService] Error retrieving user data:', error);
       return null;
@@ -154,18 +164,36 @@ export const TokenService = {
         return;
       }
       
+      // Ensure we store a clean object without circular references
+      // Create a sanitized version with just the essential fields
+      const sanitizedUserData = {
+        id: userData.id,
+        email: userData.email || '',
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        role: userData.role || 'client',
+        displayName: userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        verified: !!userData.verified,
+        // Add a timestamp for debugging
+        _stored: Date.now()
+      };
+      
+      const userDataString = JSON.stringify(sanitizedUserData);
+      
       const storage = getStorageType();
-      storage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+      storage.setItem(USER_DATA_KEY, userDataString);
       
       // Also store user ID and role separately for quick access
-      storage.setItem('auth_user_id', userData.id.toString());
-      if (userData.role) storage.setItem('auth_user_role', userData.role.toString());
+      storage.setItem('auth_user_id', sanitizedUserData.id.toString());
+      if (sanitizedUserData.role) storage.setItem('auth_user_role', sanitizedUserData.role.toString());
       
-      // Clear from the other storage for consistency
+      // For consistency, store in both storage locations to prevent refresh issues
       const otherStorage = storage === localStorage ? sessionStorage : localStorage;
-      otherStorage.removeItem(USER_DATA_KEY);
+      otherStorage.setItem(USER_DATA_KEY, userDataString);
+      otherStorage.setItem('auth_user_id', sanitizedUserData.id.toString());
+      if (sanitizedUserData.role) otherStorage.setItem('auth_user_role', sanitizedUserData.role.toString());
       
-      console.log('[TokenService] User data stored successfully');
+      console.log('[TokenService] User data stored successfully in both storage locations');
     } catch (error) {
       console.error('[TokenService] Error storing user data:', error);
     }

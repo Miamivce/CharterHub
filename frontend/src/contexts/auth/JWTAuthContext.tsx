@@ -349,8 +349,20 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const user = await jwtApi.getCurrentUser()
             if (user && user.id) {
               console.log('[JWTAuthContext] Successfully retrieved user data with valid token')
-              // Store the user data
+              
+              // Explicitly store the user data with our enhanced storage method
               TokenService.storeUserData(user)
+              
+              // Also store in the older TokenStorage for backward compatibility
+              TokenStorage.storeUserData(user)
+              
+              // Double-check that data was properly stored
+              const storedUser = TokenService.getUserData()
+              if (storedUser && storedUser.id === user.id) {
+                console.log('[JWTAuthContext] Verified user data was successfully stored')
+              } else {
+                console.warn('[JWTAuthContext] User data storage verification failed')
+              }
               
               if (isMounted.current) {
                 dispatch({
@@ -360,6 +372,18 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     user,
                   },
                 })
+                
+                // Also trigger an explicit login success event
+                dispatch({
+                  type: AUTH_TYPES.LOGIN_SUCCESS,
+                  payload: {
+                    user,
+                  },
+                })
+                
+                // Broadcast the event for other components
+                window.dispatchEvent(new CustomEvent('jwt:authSuccess', { detail: { user } }))
+                
                 return
               }
             }
@@ -528,10 +552,23 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const user = await jwtApi.login(email, password, rememberMe, targetRole)
       console.log('[JWTAuthContext] Login successful, user data received:', user)
 
-      // Store login information for quick access during redirects
+      // Ensure user data is stored properly in both storage services
       if (user && user.id) {
         // Store a quick reference for ProtectedRoute to use during redirects
         TokenService.markLoginRedirect(user.id.toString(), user.role)
+        
+        // Explicitly store user data in both services
+        TokenService.storeUserData(user)
+        TokenStorage.storeUserData(user)
+        
+        // Verify the data was stored correctly
+        const storedData = TokenService.getUserData()
+        if (storedData && storedData.id === user.id) {
+          console.log('[JWTAuthContext] Verified user data was stored successfully')
+        } else {
+          console.warn('[JWTAuthContext] User data storage verification failed')
+        }
+        
         console.log('[JWTAuthContext] Login redirect marked with user ID and role')
       }
 
