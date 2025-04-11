@@ -1,39 +1,5 @@
 {
   "version": 2,
-  "routes": [
-    {
-      "src": "^/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "^/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "^/manifest.json",
-      "dest": "/manifest.json"
-    },
-    {
-      "src": "^/service-worker.js",
-      "dest": "/service-worker.js"
-    },
-    {
-      "src": "^/(.*)\\.(js|json|css|ico|png|jpg|jpeg|svg|webp|woff|woff2|ttf|eot)",
-      "dest": "/$1.$2"
-    },
-    {
-      "src": "^/(admin|client)/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/(login|register|forgot-password|reset-password)(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/(.*)",
-      "dest": "/index.html"
-    }
-  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
