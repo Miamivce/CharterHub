@@ -39,9 +39,18 @@ export const ProtectedRoute = ({
   const { isAuthenticated, loading, user } = useJWTAuth()
   const location = useLocation()
   
+  // Synchronize storage before any authentication check
+  useEffect(() => {
+    // Make sure storage is synchronized before checking route protection
+    TokenService.syncStorageData();
+  }, [location.pathname]);
+  
   // ENHANCED: Direct session storage check for dashboard routes
   // This bypasses all React state and prevents render flicker
   if (location.pathname.includes('/dashboard')) {
+    // Sync storage first for the best chance of success
+    TokenService.syncStorageData();
+    
     // Check directly in session storage first (fastest source of truth)
     const sessionToken = sessionStorage.getItem('auth_token');
     const sessionUserId = sessionStorage.getItem('auth_user_id');

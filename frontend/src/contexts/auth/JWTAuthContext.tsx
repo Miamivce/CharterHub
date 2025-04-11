@@ -332,6 +332,9 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         console.log('[JWTAuthContext] Initializing authentication')
         
+        // ENHANCED: First, sync storage to prevent data loss
+        TokenService.syncStorageData();
+        
         // ENHANCED: First check for token without waiting for API
         const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
         
@@ -1020,6 +1023,66 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw error
     }
   }
+
+  // Add synchronization call in login success handler
+  const handleLoginSuccess = useCallback(
+    (user: any) => {
+      try {
+        // Extract essential user data
+        if (!user || !user.id) {
+          console.error('[JWTAuthContext] Invalid user data in login success handler');
+          return;
+        }
+        
+        // Ensure the storage is synchronized
+        TokenService.syncStorageData();
+        
+        // Update authentication state with user info
+        if (isMounted.current) {
+          dispatch({
+            type: AUTH_TYPES.LOGIN_SUCCESS,
+            payload: {
+              user,
+            },
+          })
+        }
+      } catch (error) {
+        console.error('[JWTAuthContext] Error in login success handler:', error);
+      }
+    },
+    [dispatch]
+  );
+
+  // Add synchronization on component mount
+  // Use effect for storage synchronization on mount
+  useEffect(() => {
+    // Synchronize storage on component mount
+    TokenService.syncStorageData();
+    
+    // Listen for page visibility changes to sync on tab focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[JWTAuthContext] Tab became visible, synchronizing storage');
+        TokenService.syncStorageData();
+      }
+    };
+    
+    // Also sync before page unload to ensure data is preserved
+    const handleBeforeUnload = () => {
+      console.log('[JWTAuthContext] Page unloading, synchronizing storage');
+      TokenService.syncStorageData();
+    };
+    
+    // Set up event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   return (
     <JWTAuthContext.Provider

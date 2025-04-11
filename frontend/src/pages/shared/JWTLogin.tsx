@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
 import { TokenStorage } from '@/services/jwtApi'
+import { TokenService } from '@/services/tokenService'
 
 // Debug logging
 console.log('[JWTLogin] Component initialized, using JWTAuthContext')
@@ -145,6 +146,41 @@ export const JWTLogin: React.FC = () => {
 
       // Check token state after login
       checkTokenState()
+      
+      // Explicitly synchronize storage to prevent data loss during navigation
+      console.log('[JWTLogin] Synchronizing authentication data between storage types');
+      const syncResult = TokenService.syncStorageData();
+      console.log('[JWTLogin] Storage synchronization result:', syncResult ? 'success' : 'failed');
+      
+      // Double-check that critical data was stored properly
+      setTimeout(() => {
+        const sessionToken = sessionStorage.getItem('auth_token');
+        const localToken = localStorage.getItem('auth_token');
+        const sessionUserId = sessionStorage.getItem('auth_user_id');
+        const localUserId = localStorage.getItem('auth_user_id');
+        
+        console.log('[JWTLogin] Storage validation after login:', {
+          session: {
+            token: sessionToken ? `exists (${sessionToken.length} chars)` : 'missing',
+            userId: sessionUserId || 'missing',
+          },
+          local: {
+            token: localToken ? `exists (${localToken.length} chars)` : 'missing',
+            userId: localUserId || 'missing',
+          }
+        });
+        
+        // If any critical data is missing, try to recover it
+        if (sessionToken === null && localToken !== null) {
+          console.log('[JWTLogin] Recovering missing session token from localStorage');
+          sessionStorage.setItem('auth_token', localToken);
+        }
+        
+        if (localToken === null && sessionToken !== null) {
+          console.log('[JWTLogin] Recovering missing local token from sessionStorage');
+          localStorage.setItem('auth_token', sessionToken);
+        }
+      }, 100);
 
       console.log('[JWTLogin] Login successful, awaiting redirection')
 

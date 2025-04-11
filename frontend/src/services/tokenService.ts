@@ -8,6 +8,7 @@ export const TOKEN_EXPIRY_KEY = 'token_expiry'
 export const USER_DATA_KEY = 'user_data'
 export const REMEMBER_ME_KEY = 'remember_me'
 export const RATE_LIMIT_KEY = 'api_rate_limit'
+export const CSRF_TOKEN_KEY = 'csrf_token'
 
 // Helper to determine which storage to use based on rememberMe preference
 const getStorageType = (): Storage => {
@@ -233,45 +234,41 @@ export const TokenService = {
   },
   
   // Store user data with error handling
-  storeUserData: (userData: any): void => {
+  storeUserData: (userData: any) => {
     try {
-      if (!userData || !userData.id) {
-        console.error('[TokenService] Attempted to store invalid user data');
-        return;
+      if (!userData) {
+        console.warn('[TokenService] Attempted to store null user data');
+        return false;
       }
       
-      // Ensure we store a clean object without circular references
-      // Create a sanitized version with just the essential fields
-      const sanitizedUserData = {
-        id: userData.id,
-        email: userData.email || '',
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        role: userData.role || 'client',
-        displayName: userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-        verified: !!userData.verified,
-        // Add a timestamp for debugging
-        _stored: Date.now()
-      };
+      // Add timestamp if missing
+      if (!userData._timestamp) {
+        userData._timestamp = Date.now();
+      }
       
-      const userDataString = JSON.stringify(sanitizedUserData);
+      // Add last updated timestamp
+      userData._lastUpdated = Date.now();
       
+      // Store in appropriate storage type
       const storage = getStorageType();
-      storage.setItem(USER_DATA_KEY, userDataString);
+      storage.setItem(USER_DATA_KEY, JSON.stringify(userData));
       
-      // Also store user ID and role separately for quick access
-      storage.setItem('auth_user_id', sanitizedUserData.id.toString());
-      if (sanitizedUserData.role) storage.setItem('auth_user_role', sanitizedUserData.role.toString());
+      // Also store the user ID and role separately for easier access and recovery
+      if (userData.id) {
+        storage.setItem('auth_user_id', userData.id.toString());
+      }
       
-      // For consistency, store in both storage locations to prevent refresh issues
-      const otherStorage = storage === localStorage ? sessionStorage : localStorage;
-      otherStorage.setItem(USER_DATA_KEY, userDataString);
-      otherStorage.setItem('auth_user_id', sanitizedUserData.id.toString());
-      if (sanitizedUserData.role) otherStorage.setItem('auth_user_role', sanitizedUserData.role.toString());
+      if (userData.role) {
+        storage.setItem('auth_user_role', userData.role.toString());
+      }
       
-      console.log('[TokenService] User data stored successfully in both storage locations');
+      // Synchronize between storage types to prevent data loss during refresh
+      TokenService.syncStorageData();
+      
+      return true;
     } catch (error) {
       console.error('[TokenService] Error storing user data:', error);
+      return false;
     }
   },
   
@@ -331,6 +328,76 @@ export const TokenService = {
       console.log('[TokenService] Login redirect marked');
     } catch (error) {
       console.error('[TokenService] Error marking login redirect:', error);
+    }
+  },
+  
+  // Synchronize critical auth data between storage types
+  syncStorageData: () => {
+    try {
+      // This function ensures critical auth data exists in both storage types
+      // to prevent data loss during page refresh
+      
+      // Essential auth keys that should exist in both storage types
+      const criticalKeys = [
+        TOKEN_KEY,
+        USER_DATA_KEY,
+        'auth_user_id',
+        'auth_user_role',
+        CSRF_TOKEN_KEY,
+        TOKEN_EXPIRY_KEY
+      ];
+      
+      console.log('[TokenService] Synchronizing critical auth data between storage types');
+      
+      // For each critical key, ensure it exists in both storage types
+      criticalKeys.forEach(key => {
+        const sessionValue = sessionStorage.getItem(key);
+        const localValue = localStorage.getItem(key);
+        
+        // If session has value but local doesn't, copy to local
+        if (sessionValue && !localValue) {
+          console.log(`[TokenService] Copying ${key} from session to local storage`);
+          localStorage.setItem(key, sessionValue);
+        }
+        
+        // If local has value but session doesn't, copy to session
+        if (localValue && !sessionValue) {
+          console.log(`[TokenService] Copying ${key} from local to session storage`);
+          sessionStorage.setItem(key, localValue);
+        }
+      });
+      
+      // Verify user data specifically since it's the most critical
+      const sessionUserData = sessionStorage.getItem(USER_DATA_KEY);
+      const localUserData = localStorage.getItem(USER_DATA_KEY);
+      
+      // If we have parsed user data in one storage but not the other, sync it
+      if (sessionUserData && !localUserData) {
+        try {
+          const parsed = JSON.parse(sessionUserData);
+          if (parsed && parsed.id) {
+            localStorage.setItem(USER_DATA_KEY, sessionUserData);
+            console.log(`[TokenService] Synchronized user data from session to local storage for ID ${parsed.id}`);
+          }
+        } catch (e) {
+          console.warn('[TokenService] Failed to parse session user data for sync:', e);
+        }
+      } else if (localUserData && !sessionUserData) {
+        try {
+          const parsed = JSON.parse(localUserData);
+          if (parsed && parsed.id) {
+            sessionStorage.setItem(USER_DATA_KEY, localUserData);
+            console.log(`[TokenService] Synchronized user data from local to session storage for ID ${parsed.id}`);
+          }
+        } catch (e) {
+          console.warn('[TokenService] Failed to parse local user data for sync:', e);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('[TokenService] Error synchronizing storage data:', error);
+      return false;
     }
   }
 };
