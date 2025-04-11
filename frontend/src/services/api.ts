@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig, AxiosAdapter } from 'axios'
 import { generateCacheBuster } from '@/utils/cacheControl'
 import { debugLog } from '@/utils/logger'
 import { TOKEN_KEY } from '@/services/jwtApi'
@@ -34,9 +34,15 @@ const axiosInstance = configureAxiosInstance(
   })
 )
 
+// Extend the AxiosRequestConfig type to include our critical flag
+interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
+  critical?: boolean;
+  keepalive?: boolean;
+}
+
 // Request interceptor for adding auth token and cache busting
 axiosInstance.interceptors.request.use(
-  (config) => {
+  (config: ExtendedAxiosRequestConfig) => {
     // Add JWT token to Authorization header for all requests
     const token = getAuthToken()
 
@@ -63,6 +69,22 @@ axiosInstance.interceptors.request.use(
 
     // Safe request logging
     debugLog(`${config.method?.toUpperCase()} ${config.url}`)
+
+    // Add a new request interceptor for critical requests
+    if (config.url?.includes('/auth/') || config.url?.endsWith('me.php')) {
+      console.log(`[API] Making critical request to ${config.url}`);
+      // Set custom flag for critical auth requests
+      config.critical = true;
+      
+      // Make the request non-cancellable
+      // This ensures the request completes even during page navigation
+      config.signal = undefined; // Remove any abort signal
+      
+      // Set keepalive for fetch-based requests if supported by the environment
+      if (!config.adapter) {
+        config.keepalive = true;
+      }
+    }
 
     return config
   },
@@ -114,6 +136,63 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(new Error(errorMessage))
   }
 )
+
+// Fix the custom adapter implementation
+// Add a custom adapter for critical requests that should not be cancelled
+const originalAdapter = axiosInstance.defaults.adapter;
+axiosInstance.defaults.adapter = async function(config: ExtendedAxiosRequestConfig) {
+  if (config.critical) {
+    try {
+      // For critical requests, use fetch with keepalive
+      // This will continue even if the page changes
+      if (typeof window !== 'undefined' && window.fetch) {
+        const url = axios.getUri(config);
+        
+        // Extract request details
+        const method = config.method?.toUpperCase() || 'GET';
+        const headers = { 
+          ...config.headers as Record<string, string>,
+          // Add any auth headers
+          ...(config?.headers?.['Authorization'] ? 
+            { 'Authorization': config.headers['Authorization'] as string } : {})
+        };
+        
+        // Prepare fetch options with keepalive
+        const fetchOptions: RequestInit = {
+          method,
+          headers,
+          credentials: 'include' as RequestCredentials,
+          keepalive: true,
+          mode: 'cors' as RequestMode,
+          body: config.data ? JSON.stringify(config.data) : undefined
+        };
+        
+        console.log(`[API] Using keepalive fetch for critical request to ${url}`);
+        
+        // Make the fetch request that will survive navigation
+        const response = await fetch(url, fetchOptions);
+        
+        // Convert the response to axios format
+        const responseData = await response.json();
+        
+        return {
+          data: responseData,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries([...response.headers.entries()]),
+          config: config,
+          request: null
+        };
+      }
+    } catch (fetchError) {
+      console.warn(`[API] Keepalive fetch failed, falling back to standard adapter: ${(fetchError as Error).message}`);
+      // If fetch fails, fall back to the original adapter
+    }
+  }
+  
+  // Use the original adapter for non-critical requests or if fetch failed
+  return (originalAdapter as AxiosAdapter)(config);
+};
 
 // For backward compatibility - use the same instance
 export const clientApi = axiosInstance

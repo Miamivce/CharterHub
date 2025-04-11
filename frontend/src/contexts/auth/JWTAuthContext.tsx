@@ -440,6 +440,34 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (token && userDataFromStorage && userDataFromStorage.id) {
           console.log('[JWTAuthContext] Found valid token and user data in storage, initializing as authenticated');
           
+          // NEW: Add a page load timestamp check
+          // This prevents excessive API calls on rapid page refreshes
+          const isWithinRefreshWindow = TokenService.isWithinAuthRefreshWindow();
+          const pageLoadDelay = 2000; // 2 seconds
+          
+          // Get page load timestamp or create one
+          let pageLoadTimestamp = parseInt(sessionStorage.getItem('page_load_timestamp') || '0', 10);
+          const now = Date.now();
+          
+          if (!pageLoadTimestamp) {
+            // First page load in this session, record it
+            pageLoadTimestamp = now;
+            sessionStorage.setItem('page_load_timestamp', pageLoadTimestamp.toString());
+          }
+          
+          // Determine if this is within a rapid refresh window (2 seconds)
+          const isRapidPageRefresh = (now - pageLoadTimestamp) < pageLoadDelay;
+          
+          // Log checks for debugging
+          console.log('[JWTAuthContext] Refresh window checks:', {
+            isWithinAuthWindow: isWithinRefreshWindow,
+            timeSincePageLoad: now - pageLoadTimestamp,
+            isRapidRefresh: isRapidPageRefresh
+          });
+          
+          // Update the page load timestamp for future checks
+          sessionStorage.setItem('page_load_timestamp', now.toString());
+          
           // Populate extra fields if this is a restored minimal object
           if (userDataFromStorage._restored) {
             // Add default values for required fields

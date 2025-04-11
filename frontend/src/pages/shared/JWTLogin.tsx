@@ -35,6 +35,71 @@ export const JWTLogin: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
 
+  // IMMEDIATE CHECK: Add a synchronous check that bypasses login screen completely
+  // This is the first thing that runs, before any state updates or effects
+  React.useLayoutEffect(() => {
+    try {
+      console.log('[JWTLogin] Performing immediate auth check before rendering login form');
+      
+      // Direct check for valid token
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('[JWTLogin] No token found, showing login form');
+        return;
+      }
+      
+      // Check if within refresh window (from TokenService)
+      const lastLoginStr = localStorage.getItem('last_successful_login') || sessionStorage.getItem('last_successful_login');
+      if (!lastLoginStr) {
+        console.log('[JWTLogin] No last login timestamp found, proceeding with normal login flow');
+        return;
+      }
+      
+      const lastLogin = parseInt(lastLoginStr, 10);
+      const now = Date.now();
+      const refreshWindow = 60 * 60 * 1000; // 1 hour
+      const isWithinWindow = now - lastLogin < refreshWindow;
+      
+      if (!isWithinWindow) {
+        console.log('[JWTLogin] Outside refresh window, proceeding with normal login flow');
+        return;
+      }
+      
+      console.log('[JWTLogin] Valid token exists and within refresh window, bypassing login screen');
+      
+      // Get any stored user data
+      const userDataStr = sessionStorage.getItem('user_data') || localStorage.getItem('user_data');
+      if (!userDataStr) {
+        console.log('[JWTLogin] No user data found, proceeding with normal login flow');
+        return;
+      }
+      
+      try {
+        const userData = JSON.parse(userDataStr);
+        if (!userData || !userData.id) {
+          console.log('[JWTLogin] Invalid user data, proceeding with normal login flow');
+          return;
+        }
+        
+        // We have valid token, within refresh window, and user data
+        // IMMEDIATELY navigate to dashboard without waiting for any API calls
+        console.log('[JWTLogin] IMMEDIATE BYPASS: Valid auth found, redirecting to dashboard directly');
+        
+        // Dispatch auth success event
+        window.dispatchEvent(new CustomEvent('jwt:authSuccess', { 
+          detail: { user: userData }
+        }));
+        
+        // Navigate to dashboard IMMEDIATELY
+        navigate('/client/dashboard');
+      } catch (err) {
+        console.warn('[JWTLogin] Error parsing user data:', err);
+      }
+    } catch (e) {
+      console.error('[JWTLogin] Error in immediate auth check:', e);
+    }
+  }, [navigate]);
+
   // Get isLoading and error values from the context's loading and errors objects
   const isLoading = jwtAuth.loading?.login || false
 

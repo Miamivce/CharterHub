@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 import { configureAxiosInstance } from '@/utils/axios-config'
+import { TokenService } from './tokenService'
 
 // Error types
 export class ApiError extends Error {
@@ -553,19 +554,35 @@ const jwtApi = {
    */
   async getCurrentUser(): Promise<User> {
     try {
-      // Check if token exists before making the request
+      // First check for a valid token
       const token = TokenStorage.getToken()
       if (!token) {
         console.log('[jwtApi] getCurrentUser - No token available, skipping request')
-        return Promise.reject(new AuthenticationError('Not authenticated'))
+        return Promise.reject(new Error('No auth token available'))
+      }
+      
+      // NEW: Check if we're within the refresh window and have cached user data
+      try {
+        const userData = TokenService.getUserData();
+        const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
+        
+        if (userData && userData.id && isWithinWindow) {
+          console.log('[jwtApi] getCurrentUser - Using cached user data within refresh window');
+          console.log('[jwtApi] getCurrentUser - Cached user data timestamp:', userData._timestamp || 'none');
+          
+          // Return the cached data to prevent API request cancellation issues
+          return Promise.resolve(userData);
+        }
+      } catch (cacheError) {
+        console.warn('[jwtApi] getCurrentUser - Error checking cached data:', cacheError);
+        // Continue with API request if cache check fails
       }
 
-      // Log before making the request
       console.log('[jwtApi] getCurrentUser - Making request to /auth/me.php with token')
-
-      // Add a timeout to prevent the request from hanging
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      
+      // Set a timeout for the request - helps avoid requests hanging indefinitely
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       const response = await apiClient
         .get('/auth/me.php', {
