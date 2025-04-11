@@ -740,9 +740,12 @@ const jwtApi = {
 
       console.log('[jwtApi] Login response status:', response.status)
 
-      // Handle successful login
-      if (response.data.success && response.data.token && response.data.user) {
-        const { token, refreshToken, user } = response.data
+      // FIXED: Handle response data with access_token (backend) vs token (frontend) mismatch
+      if (response.data.success && (response.data.token || response.data.access_token) && response.data.user) {
+        // Extract token from response - handle both naming conventions (token and access_token)
+        const token = response.data.token || response.data.access_token;
+        const refreshToken = response.data.refreshToken;
+        const { user } = response.data;
 
         // Calculate token expiry (default to 30 minutes if not provided)
         const expiresIn = response.data.expires_in || 30 * 60 // 30 minutes in seconds
@@ -796,7 +799,14 @@ const jwtApi = {
         // Return the user data
         return userData
       } else {
-        console.error('[jwtApi] Login response does not contain success, token, or user:', response.data)
+        // Debug log for login failure - show what's missing in the response
+        const responseDataSummary = {
+          success: !!response.data.success,
+          hasToken: !!(response.data.token || response.data.access_token),
+          hasUser: !!response.data.user,
+          fields: Object.keys(response.data)
+        };
+        console.error('[jwtApi] Login response validation failed:', responseDataSummary);
         throw new AuthenticationError(response.data.message || 'Authentication failed')
       }
     } catch (error) {
@@ -1285,18 +1295,28 @@ const jwtApi = {
 
       const response = await apiClient.post('/auth/refresh-token.php')
 
-      if (response.data.success && response.data.access_token) {
-        TokenStorage.storeToken(response.data.access_token, response.data.expires_in || 3600)
+      // FIXED: Support both token naming conventions for consistency
+      if (response.data.success && (response.data.token || response.data.access_token)) {
+        const token = response.data.token || response.data.access_token;
+        TokenStorage.storeToken(token, response.data.expires_in || 3600)
+        
+        // Log successful refresh
+        console.log('[jwtApi] Token refresh successful, new token stored');
 
         // Update stored user data if available
         if (response.data.user) {
           const userData = transformUserData(response.data.user)
           TokenStorage.storeUserData(userData)
+          console.log('[jwtApi] User data updated during token refresh');
         }
 
         return true
       }
 
+      console.log('[jwtApi] Token refresh failed - response missing required data:', {
+        success: !!response.data.success,
+        hasToken: !!(response.data.token || response.data.access_token)
+      });
       return false
     } catch (error: any) {
       // If we get a 401, the refresh token is invalid or expired
