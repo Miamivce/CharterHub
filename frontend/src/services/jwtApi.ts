@@ -39,6 +39,7 @@ export const TOKEN_EXPIRY_KEY = 'token_expiry'
 export const REMEMBER_ME_KEY = 'remember_me'
 export const USER_DATA_KEY = 'user_data'
 export const RATE_LIMIT_KEY = 'rate_limit_info'
+export const LAST_LOGIN_KEY = 'last_login'
 
 // API URL configuration
 const API_URL = import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000'
@@ -624,7 +625,34 @@ const jwtApi = {
           '[jwtApi] getCurrentUser - User data retrieved with timestamp:',
           userData._lastUpdated
         )
-        TokenStorage.storeUserData(userData)
+        
+        // CRITICAL FIX: Store user data in both localStorage and sessionStorage
+        // This ensures we don't lose user data during navigation
+        try {
+          // Store in TokenStorage which handles the primary storage type
+          TokenStorage.storeUserData(userData)
+          
+          // Force synchronization to ensure data exists in both storage types
+          TokenService.syncStorageData()
+          
+          // Manually store user ID and role in both storage types
+          localStorage.setItem('auth_user_id', userData.id.toString())
+          localStorage.setItem('auth_user_role', userData.role)
+          sessionStorage.setItem('auth_user_id', userData.id.toString())
+          sessionStorage.setItem('auth_user_role', userData.role)
+          
+          // Double-check that user_data exists in both storage types
+          if (!localStorage.getItem(USER_DATA_KEY)) {
+            localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData))
+          }
+          if (!sessionStorage.getItem(USER_DATA_KEY)) {
+            sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData))
+          }
+          
+          console.log('[jwtApi] getCurrentUser - Verified user data stored in both storage types')
+        } catch (storageError) {
+          console.error('[jwtApi] getCurrentUser - Error while storing user data:', storageError)
+        }
 
         // Dispatch an event to notify components that user data has been refreshed
         window.dispatchEvent(
@@ -702,55 +730,78 @@ const jwtApi = {
         loginEndpoint = '/auth/client-login.php'
       }
 
-      // Using the appropriate login endpoint
-      const response = await apiClient.post<LoginResponse>(loginEndpoint, {
-        email,
-        password,
+      // Make login request
+      console.log(`[jwtApi] Sending login request to ${loginEndpoint}`)
+      const response = await apiClient.post(loginEndpoint, {
+        email: email,
+        password: password,
+        remember_me: rememberMe,
       })
 
-      // Log only status without exposing tokens or user data
-      console.log(`[jwtApi] Login response status: ${response.status}`, {
-        success: response.data.success,
-        hasToken: !!response.data.access_token,
-        hasUserData: !!response.data.user,
-      })
+      console.log('[jwtApi] Login response status:', response.status)
 
-      if (response.data.success && response.data.access_token) {
-        console.log('[jwtApi] Login successful, storing authentication data')
+      // Handle successful login
+      if (response.data.success && response.data.token && response.data.user) {
+        const { token, refreshToken, user } = response.data
 
-        // Store the access token (refresh token is stored as HTTP-only cookie)
-        TokenStorage.storeToken(response.data.access_token, response.data.expires_in, rememberMe)
+        // Calculate token expiry (default to 30 minutes if not provided)
+        const expiresIn = response.data.expires_in || 30 * 60 // 30 minutes in seconds
+        
+        // Store the access token according to the rememberMe preference
+        TokenStorage.storeToken(token, expiresIn, rememberMe)
 
-        // Store the user data
-        const userData = transformUserData(response.data.user)
+        // CRITICAL FIX: Properly transform and store user data
+        // Create complete user object with all required fields
+        const userData = transformUserData(user)
+        
+        // Store both minimum auth data and complete user data
+        const userId = userData.id.toString()
+        const userRole = userData.role
 
-        // Sanitized log of user data (no token or personal details)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[jwtApi] User data processed', {
-            id: userData.id,
-            role: userData.role,
-            isVerified: userData.verified,
-          })
+        // Store minimal auth data in both storage types for auth checks
+        localStorage.setItem('auth_user_id', userId)
+        localStorage.setItem('auth_user_role', userRole)
+        sessionStorage.setItem('auth_user_id', userId)
+        sessionStorage.setItem('auth_user_role', userRole)
+
+        // Store complete user profile data according to remember preference
+        // This follows the documented token storage strategy
+        if (rememberMe) {
+          localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData))
+        } else {
+          sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData))
         }
 
-        TokenStorage.storeUserData(userData)
+        // Force sync data between storage types to prevent data loss
+        TokenService.syncStorageData()
 
-        // Verify the storage (without logging the actual values)
-        const storedToken = TokenStorage.getToken()
-        const storedUser = TokenStorage.getUserData()
-        console.log('[jwtApi] Storage verification:', {
-          hasToken: !!storedToken,
-          tokenLength: storedToken?.length || 0,
-          hasUser: !!storedUser,
+        console.log('[jwtApi] User authenticated successfully:', {
+          id: userData.id,
+          role: userData.role,
+          name: `${userData.firstName} ${userData.lastName}`,
         })
 
+        // Record successful login
+        const loginTimestamp = Date.now().toString()
+        localStorage.setItem(LAST_LOGIN_KEY, loginTimestamp)
+        sessionStorage.setItem(LAST_LOGIN_KEY, loginTimestamp)
+
+        // Dispatch an event to notify components that the user has been authenticated
+        window.dispatchEvent(
+          new CustomEvent('jwt:authSuccess', {
+            detail: { user: userData },
+          })
+        )
+
+        // Return the user data
         return userData
       } else {
-        throw new Error(response.data.message || 'Login failed: Invalid response from server')
+        console.error('[jwtApi] Login response does not contain success, token, or user:', response.data)
+        throw new AuthenticationError(response.data.message || 'Authentication failed')
       }
     } catch (error) {
       console.error('[jwtApi] Login error:', error)
-      return Promise.reject(error)
+      throw handleErrorResponse(error)
     }
   },
 
@@ -829,14 +880,52 @@ const jwtApi = {
    */
   async logout(): Promise<void> {
     try {
-      // Call the logout endpoint to invalidate tokens
-      await apiClient.post('/auth/logout.php')
+      console.log('[jwtApi] Logout process started');
+      
+      // First, immediately clear local storage to give instant UI feedback
+      TokenStorage.clearAllData();
+      
+      // Then attempt to notify the server (but don't wait for it)
+      try {
+        // Set a short timeout to prevent hanging on logout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second max
+        
+        console.log('[jwtApi] Sending logout request to server');
+        await apiClient.post('/auth/logout.php', {}, {
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
+        });
+        
+        console.log('[jwtApi] Logout API call completed successfully');
+      } catch (apiError) {
+        console.warn('[jwtApi] Logout API call failed, but continuing with local logout:', apiError);
+        // Continue with local logout even if API call fails
+      }
+      
+      // Double-check that all auth data is cleared from both storage types
+      [localStorage, sessionStorage].forEach(storage => {
+        storage.removeItem(TOKEN_KEY);
+        storage.removeItem(REFRESH_TOKEN_KEY);
+        storage.removeItem(TOKEN_EXPIRY_KEY);
+        storage.removeItem(USER_DATA_KEY);
+        storage.removeItem('auth_user_id');
+        storage.removeItem('auth_user_role');
+      });
+      
+      // Dispatch a logout event
+      window.dispatchEvent(new CustomEvent('jwt:logout'));
+      
+      console.log('[jwtApi] Logout process completed');
     } catch (error) {
-      console.error('Logout API call failed', error)
-      // Continue with local logout even if the API call fails
-    } finally {
-      // Clear all local auth data
-      TokenStorage.clearAllData()
+      console.error('[jwtApi] Error during logout:', error);
+      
+      // Ensure data is cleared even if there's an error
+      TokenStorage.clearAllData();
+      
+      // Re-throw the error for the caller to handle
+      throw error;
     }
   },
 

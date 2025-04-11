@@ -331,7 +331,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initialize = async () => {
       try {
         console.log('[JWTAuthContext] Initializing authentication')
-        
+
         // ENHANCED: First, sync storage to prevent data loss
         TokenService.syncStorageData();
         
@@ -763,7 +763,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const user = await jwtApi.login(email, password, rememberMe, targetRole)
       console.log('[JWTAuthContext] Login successful, user data received:', user)
-      
+
       // NEW: Record successful login timestamp
       TokenService.setLastSuccessfulLogin()
       console.log('[JWTAuthContext] Recorded login timestamp for refresh protection')
@@ -786,7 +786,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             lastName: !!user.lastName,
             role: !!user.role
           });
-        } else {
+      } else {
           console.log('[JWTAuthContext] Complete user data verified and stored after login');
         }
         

@@ -342,7 +342,6 @@ export const TokenService = {
       // Essential auth keys that should exist in both storage types
       const criticalKeys = [
         TOKEN_KEY,
-        USER_DATA_KEY,
         'auth_user_id',
         'auth_user_role',
         CSRF_TOKEN_KEY,
@@ -356,49 +355,137 @@ export const TokenService = {
         const sessionValue = sessionStorage.getItem(key);
         const localValue = localStorage.getItem(key);
         
-        // If session has value but local doesn't, copy to local
+        // If session has value but local doesn't, copy to session
         if (sessionValue && !localValue) {
           console.log(`[TokenService] Copying ${key} from session to local storage`);
           localStorage.setItem(key, sessionValue);
         }
         
-        // If local has value but session doesn't, copy to session
+        // If local has value but session doesn't, copy to local
         if (localValue && !sessionValue) {
           console.log(`[TokenService] Copying ${key} from local to session storage`);
           sessionStorage.setItem(key, localValue);
         }
       });
       
-      // Verify user data specifically since it's the most critical
+      // Special handling for complete user data (USER_DATA_KEY)
+      // We want to ensure we use the most complete user data during sync
       const sessionUserData = sessionStorage.getItem(USER_DATA_KEY);
       const localUserData = localStorage.getItem(USER_DATA_KEY);
       
-      // If we have parsed user data in one storage but not the other, sync it
-      if (sessionUserData && !localUserData) {
+      // Helper function to get user data completeness score
+      const getUserDataScore = (dataString: string | null): number => {
+        if (!dataString) return 0;
         try {
-          const parsed = JSON.parse(sessionUserData);
-          if (parsed && parsed.id) {
-            localStorage.setItem(USER_DATA_KEY, sessionUserData);
-            console.log(`[TokenService] Synchronized user data from session to local storage for ID ${parsed.id}`);
+          const data = JSON.parse(dataString);
+          // Calculate a score based on presence of key fields
+          let score = 0;
+          if (data.id) score += 5;
+          if (data.email) score += 3;
+          if (data.firstName) score += 2;
+          if (data.lastName) score += 2;
+          if (data.role) score += 5;
+          if (data._timestamp) score += 1;
+          // Newer data is better
+          if (data._timestamp && typeof data._timestamp === 'number') {
+            // Add 0.001 points per second newer (small enough not to override field presence)
+            const ageInSeconds = (Date.now() - data._timestamp) / 1000;
+            if (ageInSeconds > 0 && ageInSeconds < 86400) { // Only if within last day
+              score += (10 - Math.min(10, ageInSeconds / 8640)); // Max 10 bonus points for very fresh data
+            }
           }
+          return score;
         } catch (e) {
-          console.warn('[TokenService] Failed to parse session user data for sync:', e);
+          return 0;
         }
-      } else if (localUserData && !sessionUserData) {
+      };
+      
+      const sessionScore = getUserDataScore(sessionUserData);
+      const localScore = getUserDataScore(localUserData);
+      
+      if (sessionScore > 0 || localScore > 0) {
+        // Choose the better data source
+        if (sessionScore >= localScore && sessionUserData) {
+          // Session data is better or equal, use it
+          if (!localUserData || localScore < sessionScore) {
+            console.log(`[TokenService] Copying user data from session to local (score: ${sessionScore} vs ${localScore})`);
+            localStorage.setItem(USER_DATA_KEY, sessionUserData);
+          }
+        } else if (localScore > sessionScore && localUserData) {
+          // Local data is better, use it
+          console.log(`[TokenService] Copying user data from local to session (score: ${localScore} vs ${sessionScore})`);
+          sessionStorage.setItem(USER_DATA_KEY, localUserData);
+        }
+        
+        // If we have parse-able data in either storage, ensure it has all required fields
         try {
-          const parsed = JSON.parse(localUserData);
-          if (parsed && parsed.id) {
-            sessionStorage.setItem(USER_DATA_KEY, localUserData);
-            console.log(`[TokenService] Synchronized user data from local to session storage for ID ${parsed.id}`);
+          // Use the data source with the highest score
+          const bestDataString = sessionScore >= localScore ? sessionUserData : localUserData;
+          if (bestDataString) {
+            const userData = JSON.parse(bestDataString);
+            
+            // If we have user ID from other sources but not in the user data, add it
+            if (!userData.id) {
+              const userId = sessionStorage.getItem('auth_user_id') || localStorage.getItem('auth_user_id');
+              if (userId) {
+                userData.id = parseInt(userId, 10);
+                console.log(`[TokenService] Added missing user ID ${userId} to user data`);
+              }
+            }
+            
+            // If we have user role from other sources but not in the user data, add it
+            if (!userData.role) {
+              const userRole = sessionStorage.getItem('auth_user_role') || localStorage.getItem('auth_user_role');
+              if (userRole) {
+                userData.role = userRole;
+                console.log(`[TokenService] Added missing user role ${userRole} to user data`);
+              }
+            }
+            
+            // Add timestamps if missing
+            if (!userData._timestamp) {
+              userData._timestamp = Date.now();
+            }
+            
+            // If we made changes, update both storage locations
+            const updatedDataString = JSON.stringify(userData);
+            sessionStorage.setItem(USER_DATA_KEY, updatedDataString);
+            localStorage.setItem(USER_DATA_KEY, updatedDataString);
           }
         } catch (e) {
-          console.warn('[TokenService] Failed to parse local user data for sync:', e);
+          console.warn('[TokenService] Error enhancing user data during sync:', e);
+        }
+      } else if (sessionStorage.getItem('auth_user_id') && sessionStorage.getItem('auth_user_role')) {
+        // If we have no user data at all but have ID and role, create minimal user data
+        try {
+          const userId = sessionStorage.getItem('auth_user_id');
+          const userRole = sessionStorage.getItem('auth_user_role');
+          
+          if (userId && userRole) {
+            console.log(`[TokenService] Creating minimal user data from ID ${userId} and role ${userRole}`);
+            
+            const minimalUserData = {
+              id: parseInt(userId, 10),
+              role: userRole,
+              firstName: 'User',
+              lastName: userId,
+              email: '',
+              _timestamp: Date.now(),
+              _restored: true
+            };
+            
+            const userDataString = JSON.stringify(minimalUserData);
+            sessionStorage.setItem(USER_DATA_KEY, userDataString);
+            localStorage.setItem(USER_DATA_KEY, userDataString);
+          }
+        } catch (e) {
+          console.warn('[TokenService] Error creating minimal user data:', e);
         }
       }
       
       return true;
     } catch (error) {
-      console.error('[TokenService] Error synchronizing storage data:', error);
+      console.error('[TokenService] Error during storage synchronization:', error);
       return false;
     }
   },
