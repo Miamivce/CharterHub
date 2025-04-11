@@ -38,6 +38,57 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { isAuthenticated, loading, user } = useJWTAuth()
   const location = useLocation()
+  
+  // ENHANCED: Direct session storage check for dashboard routes
+  // This bypasses all React state and prevents render flicker
+  if (location.pathname.includes('/dashboard')) {
+    // Check directly in session storage first (fastest source of truth)
+    const sessionToken = sessionStorage.getItem('auth_token');
+    const sessionUserId = sessionStorage.getItem('auth_user_id');
+    const sessionUserRole = sessionStorage.getItem('auth_user_role');
+    
+    // If critical auth data exists in session storage, we can render immediately
+    if (sessionToken && sessionUserId && sessionUserRole) {
+      console.log(`[ProtectedRoute ${section}] ULTRA-EARLY BYPASS: Found complete auth data in session storage`);
+      
+      // Check if this role has access to this section
+      const userIsAdmin = ADMIN_ROLES.includes(sessionUserRole);
+      const userIsClient = CLIENT_ROLES.includes(sessionUserRole);
+      
+      if ((section === 'admin' && userIsAdmin) || (section === 'client' && userIsClient)) {
+        // Only if we aren't already authenticated in the context...
+        if (!isAuthenticated || !user) {
+          // Try to get the full user data
+          const userData = sessionStorage.getItem('user_data');
+          let parsedUserData = null;
+          
+          try {
+            if (userData) parsedUserData = JSON.parse(userData);
+          } catch (e) {
+            // Silent parse error - we'll use the minimal data
+          }
+          
+          // Create a minimal user object if parsing failed
+          const userObject = parsedUserData || {
+            id: parseInt(sessionUserId, 10),
+            role: sessionUserRole,
+            _restored: true,
+            _timestamp: Date.now()
+          };
+          
+          // Trigger an auth event to update the context 
+          window.dispatchEvent(
+            new CustomEvent('jwt:authSuccess', {
+              detail: { user: userObject },
+            })
+          );
+        }
+        
+        // Render children immediately without waiting for context update
+        return <>{children}</>;
+      }
+    }
+  }
 
   // Before any state or effect handling, immediately check if we should bypass the route protection
   // This is crucial for dashboard routes where we want to avoid loading screens and flickering

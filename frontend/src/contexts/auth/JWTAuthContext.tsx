@@ -331,14 +331,35 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initialize = async () => {
       try {
         console.log('[JWTAuthContext] Initializing authentication')
+        
+        // ENHANCED: First check for token without waiting for API
+        const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+        
+        // Always log out the raw storage state for debugging
+        console.log(`[JWTAuthContext] Raw storage state check: 
+          session.auth_token: ${sessionStorage.getItem('auth_token') ? 'exists' : 'missing'}
+          session.auth_user_id: ${sessionStorage.getItem('auth_user_id') ? 'exists' : 'missing'}
+          session.user_data: ${sessionStorage.getItem('user_data') ? 'exists' : 'missing'}
+          local.auth_token: ${localStorage.getItem('auth_token') ? 'exists' : 'missing'}
+          local.auth_user_id: ${localStorage.getItem('auth_user_id') ? 'exists' : 'missing'}
+          local.user_data: ${localStorage.getItem('user_data') ? 'exists' : 'missing'}
+        `);
 
         // First, directly check if we have cached user data and a valid token
         // This is a direct check to avoid the race condition where token exists but user data isn't found
-        const token = TokenService.getToken();
         const userDataFromStorage = TokenService.getUserData();
         
-        if (token && !TokenService.isTokenExpired() && userDataFromStorage && userDataFromStorage.id) {
+        if (token && userDataFromStorage && userDataFromStorage.id) {
           console.log('[JWTAuthContext] Found valid token and user data in storage, initializing as authenticated');
+          
+          // Populate extra fields if this is a restored minimal object
+          if (userDataFromStorage._restored) {
+            // Add default values for required fields
+            userDataFromStorage.firstName = userDataFromStorage.firstName || 'User';
+            userDataFromStorage.lastName = userDataFromStorage.lastName || userDataFromStorage.id.toString();
+            userDataFromStorage.email = userDataFromStorage.email || '';
+            userDataFromStorage.fullName = `${userDataFromStorage.firstName} ${userDataFromStorage.lastName}`;
+          }
           
           if (isMounted.current) {
             dispatch({
@@ -363,25 +384,35 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }));
             
             // Refresh user data in the background to ensure it's current
-            try {
-              const freshUserData = await jwtApi.getCurrentUser();
-              if (freshUserData && freshUserData.id) {
-                // Update with fresh data if available
-                TokenService.storeUserData(freshUserData);
-                
-                if (isMounted.current) {
-                  dispatch({
-                    type: AUTH_TYPES.USER_DATA_UPDATED,
-                    payload: {
-                      user: freshUserData,
-                    },
-                  });
-                }
+            setTimeout(() => {
+              try {
+                jwtApi.getCurrentUser().then(freshUserData => {
+                  if (freshUserData && freshUserData.id) {
+                    // Update with fresh data if available
+                    TokenService.storeUserData(freshUserData);
+                    
+                    if (isMounted.current) {
+                      dispatch({
+                        type: AUTH_TYPES.USER_DATA_UPDATED,
+                        payload: {
+                          user: freshUserData,
+                        },
+                      });
+                      
+                      // Broadcast refresh event
+                      window.dispatchEvent(new CustomEvent('jwt:userDataRefreshed', { 
+                        detail: { user: freshUserData }
+                      }));
+                    }
+                  }
+                }).catch(err => {
+                  console.error('[JWTAuthContext] Background refresh failed:', err);
+                  // Continue with cached data, we already initialized as authenticated
+                });
+              } catch (refreshError) {
+                console.error('[JWTAuthContext] Background refresh setup failed:', refreshError);
               }
-            } catch (refreshError) {
-              console.error('[JWTAuthContext] Background refresh failed:', refreshError);
-              // Continue with cached data, we already initialized as authenticated
-            }
+            }, 500); // Slight delay to prioritize UI rendering first
             
             return; // Exit early since we're already authenticated
           }

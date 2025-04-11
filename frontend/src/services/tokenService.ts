@@ -122,6 +122,39 @@ export const TokenService = {
   // Get user data with improved parsing and debugging
   getUserData: (): any => {
     try {
+      // First, try direct session storage access as this is typically where the most current data is
+      let directSessionData = sessionStorage.getItem(USER_DATA_KEY);
+      
+      // Try to parse it first and return immediately if valid
+      try {
+        if (directSessionData) {
+          const parsedData = JSON.parse(directSessionData);
+          if (parsedData && parsedData.id) {
+            console.log(`[TokenService] Successfully retrieved user data directly from sessionStorage: ID ${parsedData.id}`);
+            return parsedData;
+          }
+        }
+      } catch (parseError) {
+        console.warn(`[TokenService] Failed to parse session storage data, continuing with fallbacks`);
+      }
+      
+      // Now try direct access to the separate auth_user fields which might exist even if the full user object doesn't
+      const userId = sessionStorage.getItem('auth_user_id');
+      const userRole = sessionStorage.getItem('auth_user_role');
+      
+      if (userId && userRole) {
+        console.log(`[TokenService] Found user ID and role in sessionStorage: ${userId}/${userRole}`);
+        
+        // Create a minimal user object to prevent authentication failure
+        return {
+          id: parseInt(userId, 10),
+          role: userRole,
+          _restored: true,
+          _timestamp: Date.now()
+        };
+      }
+      
+      // Continue with normal storage resolution if direct access fails
       const storage = getStorageType();
       let userData = storage.getItem(USER_DATA_KEY);
       
@@ -145,14 +178,21 @@ export const TokenService = {
       if (!userData) {
         console.warn('[TokenService] No user data found in any storage location');
         
-        // As a last resort, try the direct user_data key (alternative format)
-        const directUserData = storage.getItem('user_data');
-        if (directUserData) {
-          console.log('[TokenService] Found user data using direct key');
-          userData = directUserData;
-        } else {
-          return null;
+        // As a last resort, try each individual auth field
+        const userId = storage.getItem('auth_user_id') || sessionStorage.getItem('auth_user_id') || localStorage.getItem('auth_user_id');
+        const userRole = storage.getItem('auth_user_role') || sessionStorage.getItem('auth_user_role') || localStorage.getItem('auth_user_role');
+        
+        if (userId && userRole) {
+          console.log('[TokenService] Reconstructing user data from individual fields');
+          return {
+            id: parseInt(userId, 10),
+            role: userRole,
+            _restored: true,
+            _timestamp: Date.now()
+          };
         }
+        
+        return null;
       }
       
       try {
