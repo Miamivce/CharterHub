@@ -332,7 +332,62 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         console.log('[JWTAuthContext] Initializing authentication')
 
-        // Use our comprehensive auth state validation helper
+        // First, directly check if we have cached user data and a valid token
+        // This is a direct check to avoid the race condition where token exists but user data isn't found
+        const token = TokenService.getToken();
+        const userDataFromStorage = TokenService.getUserData();
+        
+        if (token && !TokenService.isTokenExpired() && userDataFromStorage && userDataFromStorage.id) {
+          console.log('[JWTAuthContext] Found valid token and user data in storage, initializing as authenticated');
+          
+          if (isMounted.current) {
+            dispatch({
+              type: AUTH_TYPES.INITIALIZE,
+              payload: {
+                isAuthenticated: true,
+                user: userDataFromStorage,
+              },
+            });
+            
+            // Also ensure correct login success state
+            dispatch({
+              type: AUTH_TYPES.LOGIN_SUCCESS,
+              payload: {
+                user: userDataFromStorage,
+              },
+            });
+            
+            // Broadcast the event for other components
+            window.dispatchEvent(new CustomEvent('jwt:authSuccess', { 
+              detail: { user: userDataFromStorage }
+            }));
+            
+            // Refresh user data in the background to ensure it's current
+            try {
+              const freshUserData = await jwtApi.getCurrentUser();
+              if (freshUserData && freshUserData.id) {
+                // Update with fresh data if available
+                TokenService.storeUserData(freshUserData);
+                
+                if (isMounted.current) {
+                  dispatch({
+                    type: AUTH_TYPES.USER_DATA_UPDATED,
+                    payload: {
+                      user: freshUserData,
+                    },
+                  });
+                }
+              }
+            } catch (refreshError) {
+              console.error('[JWTAuthContext] Background refresh failed:', refreshError);
+              // Continue with cached data, we already initialized as authenticated
+            }
+            
+            return; // Exit early since we're already authenticated
+          }
+        }
+
+        // Continue with the normal validation if the direct check didn't succeed
         const authState = validateAuthState()
         console.log('[JWTAuthContext] Auth state validation result:', {
           isAuthenticated: authState.isAuthenticated,

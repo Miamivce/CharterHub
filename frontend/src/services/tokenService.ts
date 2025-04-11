@@ -119,16 +119,21 @@ export const TokenService = {
     }
   },
   
-  // Get user data with fallback mechanism
+  // Get user data with improved parsing and debugging
   getUserData: (): any => {
     try {
       const storage = getStorageType();
       let userData = storage.getItem(USER_DATA_KEY);
       
+      // Log the raw storage data to debug parsing issues
+      console.log(`[TokenService] Raw user data from ${storage === localStorage ? 'localStorage' : 'sessionStorage'}: ${userData ? 'Found' : 'Not found'}`);
+      
       // If not found in preferred storage, check fallback
       if (!userData) {
         const fallbackStorage = storage === localStorage ? sessionStorage : localStorage;
         userData = fallbackStorage.getItem(USER_DATA_KEY);
+        
+        console.log(`[TokenService] Raw user data from fallback ${fallbackStorage === localStorage ? 'localStorage' : 'sessionStorage'}: ${userData ? 'Found' : 'Not found'}`);
         
         // If found in fallback, migrate to preferred
         if (userData) {
@@ -139,15 +144,46 @@ export const TokenService = {
       
       if (!userData) {
         console.warn('[TokenService] No user data found in any storage location');
-        return null;
+        
+        // As a last resort, try the direct user_data key (alternative format)
+        const directUserData = storage.getItem('user_data');
+        if (directUserData) {
+          console.log('[TokenService] Found user data using direct key');
+          userData = directUserData;
+        } else {
+          return null;
+        }
       }
       
       try {
-        return JSON.parse(userData);
+        // Try to parse the user data
+        const parsedData = JSON.parse(userData);
+        
+        // If the parsed data doesn't have an ID, it might be invalid
+        if (!parsedData || !parsedData.id) {
+          console.error('[TokenService] User data is invalid (missing ID):', parsedData);
+          return null;
+        }
+        
+        console.log(`[TokenService] Successfully parsed user data for ID ${parsedData.id}`);
+        return parsedData;
       } catch (parseError) {
         console.error('[TokenService] Failed to parse user data:', parseError);
         // Clean up invalid data
         storage.removeItem(USER_DATA_KEY);
+        
+        // If parsing fails, the data might be already parsed and stringified differently
+        // Try returning the raw data as a last resort
+        if (typeof userData === 'string' && userData.includes('"id":')) {
+          try {
+            // Try one more time with manual parsing to handle potential edge cases
+            const fixedData = userData.replace(/\\"/g, '"').replace(/^"|"$/g, '');
+            return JSON.parse(fixedData);
+          } catch (e) {
+            return null;
+          }
+        }
+        
         return null;
       }
     } catch (error) {

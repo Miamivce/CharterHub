@@ -37,6 +37,36 @@ export const ProtectedRoute = ({
   section = 'client',
 }: ProtectedRouteProps) => {
   const { isAuthenticated, loading, user } = useJWTAuth()
+  const location = useLocation()
+
+  // Before any state or effect handling, immediately check if we should bypass the route protection
+  // This is crucial for dashboard routes where we want to avoid loading screens and flickering
+  if (location.pathname.includes('/dashboard')) {
+    const userData = TokenService.getUserData();
+    const hasValidToken = TokenService.hasValidAuth();
+    
+    if (hasValidToken && userData && userData.id && userData.role) {
+      // Check if the user's role matches the section requirements
+      const userIsAdmin = ADMIN_ROLES.includes(userData.role);
+      const userIsClient = CLIENT_ROLES.includes(userData.role);
+      
+      if ((section === 'admin' && userIsAdmin) || (section === 'client' && userIsClient)) {
+        console.log(`[ProtectedRoute ${section}] Early bypass: Valid auth for ${section} dashboard confirmed`);
+        
+        // If we have data but the auth context hasn't updated, trigger an update
+        if (!isAuthenticated || !user) {
+          window.dispatchEvent(
+            new CustomEvent('jwt:authSuccess', {
+              detail: { user: userData },
+            })
+          );
+        }
+        
+        return <>{children}</>;
+      }
+    }
+  }
+
   const [routeState, setRouteState] = useState<{
     accessChecked: boolean
     accessAllowed: boolean
@@ -54,7 +84,6 @@ export const ProtectedRoute = ({
     verificationAttempts: 0,
     hasRequiredRole: false,
   })
-  const location = useLocation()
 
   // Create stable references to state values to avoid infinite loops
   const pathRef = useRef(location.pathname)
