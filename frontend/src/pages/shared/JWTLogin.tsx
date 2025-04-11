@@ -155,11 +155,12 @@ export const JWTLogin: React.FC = () => {
   // Check token state on component mount
   useEffect(() => {
     console.log('[JWTLogin] Component mounted')
-    const hasToken = checkTokenState()
-    console.log('[JWTLogin] Initial token state:', hasToken)
-
+    checkTokenState()
+    
+    const token = TokenStorage.getToken()
+    
     // If token exists but not authenticated, try to heal the state
-    if (hasToken && !jwtAuth.isAuthenticated) {
+    if (token && !jwtAuth.isAuthenticated) {
       console.log('[JWTLogin] Token exists but not authenticated, attempting to heal state')
       const userData = TokenStorage.getUserData()
 
