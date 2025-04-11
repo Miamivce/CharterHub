@@ -18,6 +18,7 @@ import jwtApi, {
   PasswordResetData,
   validateAuthState,
 } from '@/services/jwtApi'
+import { TokenService } from '@/services/tokenService'
 
 // Auth state interface
 export interface AuthState {
@@ -242,7 +243,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[JWTAuthContext] Auth failure reason:', reason)
 
       // Clear auth data
-      TokenStorage.clearAllData()
+      TokenService.clearTokens()
 
       if (isMounted.current) {
         dispatch({
@@ -265,7 +266,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[JWTAuthContext] Token expired event received')
 
       // Clear auth data
-      TokenStorage.clearAllData()
+      TokenService.clearTokens()
 
       if (isMounted.current) {
         dispatch({
@@ -349,7 +350,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (user && user.id) {
               console.log('[JWTAuthContext] Successfully retrieved user data with valid token')
               // Store the user data
-              TokenStorage.storeUserData(user)
+              TokenService.storeUserData(user)
               
               if (isMounted.current) {
                 dispatch({
@@ -429,7 +430,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (axiosError?.response?.status === 401) {
             console.log('[JWTAuthContext] Token rejected (401) - clearing auth data')
             // Clear any tokens since they're invalid
-            TokenStorage.clearAllData()
+            TokenService.clearTokens()
 
             if (isMounted.current) {
               dispatch({
@@ -527,6 +528,13 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const user = await jwtApi.login(email, password, rememberMe, targetRole)
       console.log('[JWTAuthContext] Login successful, user data received:', user)
 
+      // Store login information for quick access during redirects
+      if (user && user.id) {
+        // Store a quick reference for ProtectedRoute to use during redirects
+        TokenService.markLoginRedirect(user.id.toString(), user.role)
+        console.log('[JWTAuthContext] Login redirect marked with user ID and role')
+      }
+
       // Perform a complete validation after login to ensure we're in a consistent state
       const authState = validateAuthState()
       if (!authState.isAuthenticated && authState.tokenExists) {
@@ -596,7 +604,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         })
 
         // Remove any stored auth tokens to ensure user needs to log in properly
-        TokenStorage.clearToken()
+        TokenService.clearTokens()
       }
 
       // Return the user data for showing verification link but don't authenticate
@@ -727,13 +735,13 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // 5. Explicitly update TokenStorage to ensure consistency
         console.log('[JWTAuthContext] Updating TokenStorage with latest user data')
-        TokenStorage.storeUserData(deepClonedUser)
+        TokenService.storeUserData(deepClonedUser)
 
         // 6. Wait a tiny bit to ensure state propagation
         await new Promise((resolve) => setTimeout(resolve, 100))
 
         // 7. Verify the update was successful by checking TokenStorage
-        const storedUser = TokenStorage.getUserData()
+        const storedUser = TokenService.getUserData()
         if (storedUser && storedUser._timestamp === deepClonedUser._timestamp) {
           console.log(
             '[JWTAuthContext] Verified TokenStorage update success:',
@@ -811,7 +819,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       // First check if a token exists to avoid unnecessary API calls
-      const hasToken = TokenStorage.getToken()
+      const hasToken = TokenService.getToken()
       if (!hasToken) {
         console.log('[JWTAuthContext] No token available, skipping user data refresh')
         // Early return without error when no token exists
@@ -851,13 +859,13 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Ensure TokenStorage is also updated to maintain consistency
         console.log('[JWTAuthContext] Updating TokenStorage with refreshed user data')
-        TokenStorage.storeUserData(deepClonedUser)
+        TokenService.storeUserData(deepClonedUser)
 
         // Small delay to ensure state propagation
         await new Promise((resolve) => setTimeout(resolve, 100))
 
         // Verify the update actually took effect
-        const storedUser = TokenStorage.getUserData()
+        const storedUser = TokenService.getUserData()
         if (storedUser && storedUser._timestamp === deepClonedUser._timestamp) {
           console.log(
             '[JWTAuthContext] Verified TokenStorage update for refresh:',

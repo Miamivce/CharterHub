@@ -1,54 +1,72 @@
 {
   "version": 2,
-  "outputDirectory": "frontend/dist",
-  "buildCommand": "cd frontend && npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
-  "framework": null,
-  "cleanUrls": true,
-  "trailingSlash": false,
+  "routes": [
+    {
+      "src": "^/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "^/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "^/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "^/service-worker.js",
+      "dest": "/service-worker.js"
+    },
+    {
+      "src": "^/(.*)\\.(js|json|css|ico|png|jpg|jpeg|svg|webp|woff|woff2|ttf|eot)",
+      "dest": "/$1.$2"
+    },
+    {
+      "src": "^/(admin|client)/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "^/(login|register|forgot-password|reset-password)(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "^/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
       ]
     },
     {
-      "source": "/(.*)\\.js",
+      "source": "/api/(.*)",
       "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.css",
-      "headers": [
-        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(?:jpg|jpeg|png|gif|svg|ico)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
       ]
     }
-  ],
-  "routes": [
-    { "src": "^/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "^/env-config.js", "dest": "/env-config.js" },
-    { "src": "^/redirect.js", "dest": "/redirect.js" },
-    { "src": "^/service-worker.js", "dest": "/service-worker.js" },
-    { "src": "^/vite.svg", "dest": "/vite.svg" },
-    { "src": "^/test.html", "dest": "/test.html" },
-    { "src": "^/404.html", "dest": "/404.html" },
-    { "src": "^/_redirects", "dest": "/_redirects" },
-    { "src": "^/favicon.ico", "dest": "/favicon.ico" },
-    { "src": "^/(login|dashboard|signup|register|admin|profile|account|bookings|yachts|destinations)(.*)", "dest": "/index.html", "status": 200 },
-    { "handle": "filesystem" },
-    { "src": "^/(.*)", "status": 200, "dest": "/index.html" }
   ]
 } 

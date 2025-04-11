@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
 import { LoadingScreen } from '@/components/shared/LoadingScreen'
 import jwtApi, { TokenStorage, validateAuthState } from '@/services/jwtApi'
+import { TokenService } from '@/services/tokenService'
 
 // Local implementation of validateTokenStorage since it's not exported from jwtApi
 const validateTokenStorage = () => {
@@ -160,6 +161,32 @@ export const ProtectedRoute = ({
       console.log(`[ProtectedRoute ${section}] Auth still loading, deferring access check`)
       processingRef.current = false
       return
+    }
+    
+    // Use TokenService to check for valid authentication - this can help
+    // handle race conditions where the auth context hasn't updated yet
+    const hasValidAuthInStorage = TokenService.hasValidAuth()
+    if (hasValidAuthInStorage && !isAuthenticated) {
+      console.log(
+        `[ProtectedRoute ${section}] Valid auth found in storage but context not updated yet`
+      )
+      
+      // Get user data from storage to use while context updates
+      const userData = TokenService.getUserData()
+      if (userData && userData.id) {
+        console.log(`[ProtectedRoute ${section}] Using user data from storage:`, userData.id)
+        
+        // Force an auth success event to update context
+        window.dispatchEvent(
+          new CustomEvent('jwt:authSuccess', {
+            detail: { user: userData },
+          })
+        )
+        
+        // Early return - we'll let the auth context update trigger another check
+        processingRef.current = false
+        return
+      }
     }
 
     // Check the most recent login data first
@@ -462,6 +489,37 @@ export const ProtectedRoute = ({
 
   // Show loading screen during initial access check or auth loading
   if (routeState.isVerifying || !routeState.accessChecked || loading.login) {
+    // First, try to use TokenService for immediate validation in dashboard routes
+    if (location.pathname.includes('/dashboard')) {
+      // Double check with TokenService to ensure we have valid tokens
+      if (TokenService.hasValidAuth()) {
+        const userData = TokenService.getUserData();
+        
+        // If the user role matches the section, render immediately
+        if (userData && userData.role) {
+          const userIsAdmin = ADMIN_ROLES.includes(userData.role);
+          const userIsClient = CLIENT_ROLES.includes(userData.role);
+          
+          if ((section === 'admin' && userIsAdmin) || (section === 'client' && userIsClient)) {
+            console.log(
+              `[ProtectedRoute ${section}] Bypassing loading for dashboard - TokenService validation successful`
+            );
+            
+            // If not already in authenticated state, trigger the auth event
+            if (!isAuthenticated || !user) {
+              window.dispatchEvent(
+                new CustomEvent('jwt:authSuccess', {
+                  detail: { user: userData },
+                })
+              );
+            }
+            
+            return <>{children}</>;
+          }
+        }
+      }
+    }
+    
     // Check if this is direct URL access after login
     const authState = validateAuthState()
 

@@ -1,18 +1,19 @@
 // Token service - centralizes token handling across the application
 // This solves the issue where different services access tokens in different ways
 
-// Import constants from jwtApi.ts
-export const TOKEN_KEY = 'auth_token';
-export const REFRESH_TOKEN_KEY = 'refresh_token';
-export const TOKEN_EXPIRY_KEY = 'token_expiry';
-export const USER_DATA_KEY = 'user_data';
-export const REMEMBER_ME_KEY = 'remember_me';
+// Storage keys
+export const TOKEN_KEY = 'auth_token'
+export const REFRESH_TOKEN_KEY = 'refresh_token'
+export const TOKEN_EXPIRY_KEY = 'token_expiry'
+export const USER_DATA_KEY = 'user_data'
+export const REMEMBER_ME_KEY = 'remember_me'
+export const RATE_LIMIT_KEY = 'api_rate_limit'
 
 // Helper to determine which storage to use based on rememberMe preference
 const getStorageType = (): Storage => {
-  const useLocalStorage = localStorage.getItem(REMEMBER_ME_KEY) === 'true';
-  return useLocalStorage ? localStorage : sessionStorage;
-};
+  const rememberMe = localStorage.getItem(REMEMBER_ME_KEY)
+  return rememberMe === 'true' ? localStorage : sessionStorage
+}
 
 // Enhanced token storage service with better error handling and fallbacks
 export const TokenService = {
@@ -32,6 +33,13 @@ export const TokenService = {
         if (token) {
           console.log('[TokenService] Found token in fallback storage, migrating to preferred storage');
           storage.setItem(TOKEN_KEY, token);
+          
+          // Also migrate other auth-related data for consistency
+          const userData = fallbackStorage.getItem(USER_DATA_KEY);
+          const expiry = fallbackStorage.getItem(TOKEN_EXPIRY_KEY);
+          
+          if (userData) storage.setItem(USER_DATA_KEY, userData);
+          if (expiry) storage.setItem(TOKEN_EXPIRY_KEY, expiry);
         }
       }
       
@@ -51,7 +59,21 @@ export const TokenService = {
   // Get token expiry with error handling
   getTokenExpiry: (): number | null => {
     try {
-      const expiry = getStorageType().getItem(TOKEN_EXPIRY_KEY);
+      const storage = getStorageType();
+      let expiry = storage.getItem(TOKEN_EXPIRY_KEY);
+      
+      // If not found in preferred storage, check fallback
+      if (!expiry) {
+        const fallbackStorage = storage === localStorage ? sessionStorage : localStorage;
+        expiry = fallbackStorage.getItem(TOKEN_EXPIRY_KEY);
+        
+        // If found in fallback, migrate to preferred
+        if (expiry) {
+          console.log('[TokenService] Found expiry in fallback storage, migrating to preferred');
+          storage.setItem(TOKEN_EXPIRY_KEY, expiry);
+        }
+      }
+      
       if (!expiry) return null;
       
       const expiryNum = parseInt(expiry, 10);
@@ -88,9 +110,64 @@ export const TokenService = {
       otherStorage.removeItem(TOKEN_KEY);
       otherStorage.removeItem(TOKEN_EXPIRY_KEY);
       
+      // Store a token timestamp to help troubleshoot auth issues
+      storage.setItem('auth_token_timestamp', Date.now().toString());
+      
       console.log(`[TokenService] Token stored successfully, expires at ${new Date(expiryTime).toLocaleString()}`);
     } catch (error) {
       console.error('[TokenService] Error storing token:', error);
+    }
+  },
+  
+  // Get user data with fallback mechanism
+  getUserData: (): any => {
+    try {
+      const storage = getStorageType();
+      let userData = storage.getItem(USER_DATA_KEY);
+      
+      // If not found in preferred storage, check fallback
+      if (!userData) {
+        const fallbackStorage = storage === localStorage ? sessionStorage : localStorage;
+        userData = fallbackStorage.getItem(USER_DATA_KEY);
+        
+        // If found in fallback, migrate to preferred
+        if (userData) {
+          console.log('[TokenService] Found user data in fallback storage, migrating to preferred');
+          storage.setItem(USER_DATA_KEY, userData);
+        }
+      }
+      
+      if (!userData) return null;
+      
+      return JSON.parse(userData);
+    } catch (error) {
+      console.error('[TokenService] Error retrieving user data:', error);
+      return null;
+    }
+  },
+  
+  // Store user data with error handling
+  storeUserData: (userData: any): void => {
+    try {
+      if (!userData || !userData.id) {
+        console.error('[TokenService] Attempted to store invalid user data');
+        return;
+      }
+      
+      const storage = getStorageType();
+      storage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+      
+      // Also store user ID and role separately for quick access
+      storage.setItem('auth_user_id', userData.id.toString());
+      if (userData.role) storage.setItem('auth_user_role', userData.role.toString());
+      
+      // Clear from the other storage for consistency
+      const otherStorage = storage === localStorage ? sessionStorage : localStorage;
+      otherStorage.removeItem(USER_DATA_KEY);
+      
+      console.log('[TokenService] User data stored successfully');
+    } catch (error) {
+      console.error('[TokenService] Error storing user data:', error);
     }
   },
   
@@ -101,10 +178,25 @@ export const TokenService = {
       if (!expiry) return true;
       
       const now = Date.now();
-      return now >= expiry;
+      // Add a 5-second buffer to prevent edge-case timing issues
+      return now >= (expiry - 5000);
     } catch (error) {
       console.error('[TokenService] Error checking token expiration:', error);
       return true; // Assume expired on error
+    }
+  },
+  
+  // Check if we have valid authentication
+  hasValidAuth: (): boolean => {
+    try {
+      const token = TokenService.getToken();
+      const userData = TokenService.getUserData();
+      
+      // Only consider valid if we have both token and user data
+      return !!token && !TokenService.isTokenExpired() && !!userData && !!userData.id;
+    } catch (error) {
+      console.error('[TokenService] Error checking auth validity:', error);
+      return false;
     }
   },
   
@@ -115,6 +207,10 @@ export const TokenService = {
         storage.removeItem(TOKEN_KEY);
         storage.removeItem(REFRESH_TOKEN_KEY);
         storage.removeItem(TOKEN_EXPIRY_KEY);
+        storage.removeItem(USER_DATA_KEY);
+        storage.removeItem('auth_user_id');
+        storage.removeItem('auth_user_role');
+        storage.removeItem('auth_token_timestamp');
       });
       console.log('[TokenService] All tokens cleared');
     } catch (error) {
@@ -122,58 +218,16 @@ export const TokenService = {
     }
   },
   
-  // Get stored user data
-  getUserData: () => {
+  // Mark that we've just logged in (to help with race conditions)
+  markLoginRedirect: (userId: string, userRole: string): void => {
     try {
-      const data = getStorageType().getItem(USER_DATA_KEY);
-      if (!data) return null;
-      
-      return JSON.parse(data);
+      sessionStorage.setItem('auth_redirect_timestamp', Date.now().toString());
+      sessionStorage.setItem('auth_user_id', userId);
+      sessionStorage.setItem('auth_user_role', userRole);
+      console.log('[TokenService] Login redirect marked');
     } catch (error) {
-      console.error('[TokenService] Error retrieving user data:', error);
-      return null;
+      console.error('[TokenService] Error marking login redirect:', error);
     }
-  },
-  
-  // Store user data
-  storeUserData: (userData: any): void => {
-    try {
-      if (!userData) {
-        console.error('[TokenService] Attempted to store empty user data');
-        return;
-      }
-      
-      // Ensure we don't have circular references
-      const userToStore = { ...userData };
-      
-      // Add timestamps for debugging
-      const now = Date.now();
-      userToStore._timestamp = userToStore._timestamp || now;
-      userToStore._lastUpdated = now;
-      
-      getStorageType().setItem(USER_DATA_KEY, JSON.stringify(userToStore));
-      console.log('[TokenService] User data stored successfully');
-    } catch (error) {
-      console.error('[TokenService] Error storing user data:', error);
-    }
-  },
-  
-  // Clear user data
-  clearUserData: (): void => {
-    try {
-      [localStorage, sessionStorage].forEach(storage => {
-        storage.removeItem(USER_DATA_KEY);
-      });
-      console.log('[TokenService] User data cleared');
-    } catch (error) {
-      console.error('[TokenService] Error clearing user data:', error);
-    }
-  },
-  
-  // Clear all auth data (tokens and user data)
-  clearAllAuthData: (): void => {
-    TokenService.clearTokens();
-    TokenService.clearUserData();
   }
 };
 
