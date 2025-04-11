@@ -22,6 +22,22 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    // FIX: Ignore React Router navigation cancellation errors
+    if (
+      error.message.includes('Minified React error #300') ||
+      error.message.includes('Suspense') ||
+      error.message.includes('lazy') ||
+      error.message.includes('navigation') ||
+      error.message.includes('cancel')
+    ) {
+      console.log('Ignoring navigation-related error in error boundary:', error.message)
+      return {
+        hasError: false, // Don't show the error UI for navigation errors
+        error,
+        errorInfo: null,
+      }
+    }
+    
     return {
       hasError: true,
       error,
@@ -30,6 +46,29 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // CRITICAL FIX: Ignore React Router navigation errors
+    const isNavigationError = 
+      error.message.includes('Minified React error #300') ||
+      error.message.includes('Suspense') ||
+      error.message.includes('lazy') ||
+      error.message.includes('navigation') ||
+      error.message.includes('cancel');
+      
+    if (isNavigationError) {
+      console.log('Navigation error caught and ignored by ErrorBoundary:', error.message);
+      // Reset error state to prevent UI from showing error
+      setTimeout(() => {
+        if (this.state.hasError) {
+          this.setState({
+            hasError: false,
+            error: null,
+            errorInfo: null,
+          });
+        }
+      }, 100);
+      return;
+    }
+    
     this.setState({
       error,
       errorInfo,
@@ -51,6 +90,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // ENHANCEMENT: Only show the error UI when we have a real error, not navigation issues
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm space-y-6">

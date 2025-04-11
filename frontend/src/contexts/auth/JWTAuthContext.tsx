@@ -72,7 +72,7 @@ export interface JWTAuthContextType extends AuthState {
     onUpdateSuccess?: (user: User) => void
   ) => Promise<User>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
-  refreshUserData: () => Promise<User | null>
+  refreshUserData: (forceRefresh?: boolean) => Promise<User | null>
   // Aliases for backward compatibility
   refreshUser: () => Promise<User | null> // Alias for refreshUserData
   // Loading and error states
@@ -1037,7 +1037,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   // Refresh user data handler
-  const handleRefreshUserData = async () => {
+  const handleRefreshUserData = async (forceRefresh = false) => {
     updateLoading('refreshUserData', true)
     updateError('refreshUserData', null)
 
@@ -1051,8 +1051,8 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null
       }
 
-      console.log('[JWTAuthContext] Fetching current user data from API')
-      const userFromApi = await jwtApi.getCurrentUser()
+      console.log(`[JWTAuthContext] Fetching current user data from API${forceRefresh ? ' (FORCE REFRESH)' : ''}`)
+      const userFromApi = await jwtApi.getCurrentUser(forceRefresh)
       console.log('[JWTAuthContext] Received user data from API:', userFromApi)
 
       if (isMounted.current) {

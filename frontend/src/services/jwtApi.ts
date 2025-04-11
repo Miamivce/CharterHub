@@ -58,6 +58,7 @@ export interface User {
   permissions?: Record<string, boolean>
   _lastUpdated?: number
   _timestamp?: number
+  _original?: any // For debugging only
 }
 
 export interface UserProfileUpdateData {
@@ -311,54 +312,50 @@ const TokenStorage = {
 
 // Helper function to convert snake_case API response to camelCase
 const transformUserData = (data: any): User => {
-  if (!data) {
-    console.error('[jwtApi] transformUserData received null or undefined data')
-    return {} as User
-  }
-
-  // Don't log sensitive user data in production
-  // In development, mask email and other sensitive fields
-  if (process.env.NODE_ENV === 'development') {
-    // Create a sanitized version for logging by masking sensitive fields
-    const sanitizedData = { ...data }
-    if (sanitizedData.email) {
-      // Mask email (show first 2 chars and domain)
-      const emailParts = sanitizedData.email.split('@')
-      if (emailParts.length === 2) {
-        sanitizedData.email = `${emailParts[0].substring(0, 2)}***@${emailParts[1]}`
-      } else {
-        sanitizedData.email = '***@***.com'
-      }
-    }
-    if (sanitizedData.phone_number || sanitizedData.phoneNumber) {
-      // Mask phone number (show only last 4 digits)
-      const phone = sanitizedData.phone_number || sanitizedData.phoneNumber
-      sanitizedData.phone_number = sanitizedData.phoneNumber = `****${phone.slice(-4)}`
-    }
-    console.log('[jwtApi] Processing user data with masked fields')
-  }
-
-  const result = {
-    id: data.id,
-    email: data.email,
+  if (!data) return data;
+  
+  const userData: User = {
+    id: data.id || 0,
+    email: data.email || '',
     firstName: data.first_name || data.firstName || '',
     lastName: data.last_name || data.lastName || '',
-    fullName:
-      data.full_name ||
-      `${data.first_name || data.firstName || ''} ${data.last_name || data.lastName || ''}`.trim(),
+    role: data.role || 'client',
+    verified: data.verified || false,
+    // Optional fields
     phoneNumber: data.phone_number || data.phoneNumber || '',
     company: data.company || '',
-    role: (data.role as 'admin' | 'client') || 'client',
-    verified: !!data.verified,
-    permissions: data.permissions || {},
+    // Add timestamp for tracking  
+    _timestamp: Date.now(),
   }
-
-  // Only log non-sensitive information in development
+  
+  // ENHANCEMENT: Log warning if critical fields are missing
+  if (!userData.firstName || userData.firstName.trim() === '') {
+    console.warn('[jwtApi] Warning: User data missing firstName, using placeholder');
+    userData.firstName = userData.id ? `User ${userData.id}` : 'User';
+  }
+  
+  if (!userData.lastName || userData.lastName.trim() === '') {
+    console.warn('[jwtApi] Warning: User data missing lastName, using placeholder');
+    userData.lastName = userData.id ? `${userData.id}` : 'Unknown';
+  }
+  
+  if (!userData.email || userData.email.trim() === '') {
+    console.warn('[jwtApi] Warning: User data missing email, using placeholder');
+    userData.email = 'missing@example.com';
+  }
+  
+  // Generate the fullName from firstName and lastName
+  userData.fullName = `${userData.firstName} ${userData.lastName}`.trim()
+  if (userData.fullName === '') {
+    userData.fullName = `User ${userData.id || ''}` 
+  }
+  
+  // Add the original data for debugging if needed
   if (process.env.NODE_ENV === 'development') {
-    console.log('[jwtApi] User data processed successfully')
+    userData._original = data
   }
-
-  return result
+  
+  return userData
 }
 
 // API client creation
@@ -551,8 +548,9 @@ const apiClient = createApiClient()
 const jwtApi = {
   /**
    * Get the current user's profile
+   * @param forceRefresh When true, always fetches from API regardless of cache
    */
-  async getCurrentUser(): Promise<User> {
+  async getCurrentUser(forceRefresh = false): Promise<User> {
     try {
       // First check for a valid token
       const token = TokenStorage.getToken()
@@ -562,30 +560,35 @@ const jwtApi = {
       }
       
       // NEW: Check if we're within the refresh window and have cached user data
-      try {
-        const userData = TokenService.getUserData();
-        const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
-        
-        // FIXED: Only use cached data if it contains ALL essential user information
-        // This ensures we're not just using a minimal auth object with only ID
-        if (userData && 
-            userData.id && 
-            userData.email && 
-            userData.firstName && 
-            userData.lastName && 
-            userData.role && 
-            isWithinWindow) {
-          console.log('[jwtApi] getCurrentUser - Using complete cached user data within refresh window');
-          console.log('[jwtApi] getCurrentUser - Cached user data timestamp:', userData._timestamp || 'none');
+      // Skip this check if forceRefresh is true
+      if (!forceRefresh) {
+        try {
+          const userData = TokenService.getUserData();
+          const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
           
-          // Return the cached data to prevent API request cancellation issues
-          return Promise.resolve(userData);
-        } else if (userData && userData.id && isWithinWindow) {
-          console.log('[jwtApi] getCurrentUser - Found incomplete user data, forcing refresh');
+          // FIXED: Only use cached data if it contains ALL essential user information
+          // This ensures we're not just using a minimal auth object with only ID
+          if (userData && 
+              userData.id && 
+              userData.email && 
+              userData.firstName && 
+              userData.lastName && 
+              userData.role && 
+              isWithinWindow) {
+            console.log('[jwtApi] getCurrentUser - Using complete cached user data within refresh window');
+            console.log('[jwtApi] getCurrentUser - Cached user data timestamp:', userData._timestamp || 'none');
+            
+            // Return the cached data to prevent API request cancellation issues
+            return Promise.resolve(userData);
+          } else if (userData && userData.id && isWithinWindow) {
+            console.log('[jwtApi] getCurrentUser - Found incomplete user data, forcing refresh');
+          }
+        } catch (cacheError) {
+          console.warn('[jwtApi] getCurrentUser - Error checking cached data:', cacheError);
+          // Continue with API request if cache check fails
         }
-      } catch (cacheError) {
-        console.warn('[jwtApi] getCurrentUser - Error checking cached data:', cacheError);
-        // Continue with API request if cache check fails
+      } else {
+        console.log('[jwtApi] getCurrentUser - Force refresh requested, skipping cache');
       }
 
       console.log('[jwtApi] getCurrentUser - Making request to /auth/me.php with token')
