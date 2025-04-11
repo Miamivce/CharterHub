@@ -566,12 +566,22 @@ const jwtApi = {
         const userData = TokenService.getUserData();
         const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
         
-        if (userData && userData.id && isWithinWindow) {
-          console.log('[jwtApi] getCurrentUser - Using cached user data within refresh window');
+        // FIXED: Only use cached data if it contains ALL essential user information
+        // This ensures we're not just using a minimal auth object with only ID
+        if (userData && 
+            userData.id && 
+            userData.email && 
+            userData.firstName && 
+            userData.lastName && 
+            userData.role && 
+            isWithinWindow) {
+          console.log('[jwtApi] getCurrentUser - Using complete cached user data within refresh window');
           console.log('[jwtApi] getCurrentUser - Cached user data timestamp:', userData._timestamp || 'none');
           
           // Return the cached data to prevent API request cancellation issues
           return Promise.resolve(userData);
+        } else if (userData && userData.id && isWithinWindow) {
+          console.log('[jwtApi] getCurrentUser - Found incomplete user data, forcing refresh');
         }
       } catch (cacheError) {
         console.warn('[jwtApi] getCurrentUser - Error checking cached data:', cacheError);

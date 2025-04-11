@@ -76,12 +76,21 @@ export const JWTLogin: React.FC = () => {
       
       try {
         const userData = JSON.parse(userDataStr);
-        if (!userData || !userData.id) {
-          console.log('[JWTLogin] Invalid user data, proceeding with normal login flow');
+        // FIXED: Only bypass login if we have COMPLETE user data
+        if (!userData || 
+            !userData.id || 
+            !userData.email || 
+            !userData.firstName || 
+            !userData.lastName || 
+            !userData.role) {
+          console.log('[JWTLogin] Incomplete user data found, proceeding with normal login flow:',
+                     {id: !!userData?.id, email: !!userData?.email, 
+                      firstName: !!userData?.firstName, lastName: !!userData?.lastName,
+                      role: !!userData?.role});
           return;
         }
         
-        // We have valid token, within refresh window, and user data
+        // We have valid token, within refresh window, and COMPLETE user data
         // IMMEDIATELY navigate to dashboard without waiting for any API calls
         console.log('[JWTLogin] IMMEDIATE BYPASS: Valid auth found, redirecting to dashboard directly');
         

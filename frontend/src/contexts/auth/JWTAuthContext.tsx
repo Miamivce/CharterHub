@@ -342,10 +342,19 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userData = TokenService.getUserData();
           const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
           
-          if (token && userData && userData.id && isWithinWindow) {
+          // FIXED: Only use quick initialization if we have COMPLETE user data
+          // This prevents showing partial user objects with just ID
+          if (token && 
+              userData && 
+              userData.id && 
+              userData.email && 
+              userData.firstName && 
+              userData.lastName && 
+              userData.role && 
+              isWithinWindow) {
             console.log('[JWTAuthContext] Quick initialization criteria met:');
             console.log(`- Valid token: ${!!token} (length: ${token ? token.length : 0})`);
-            console.log(`- User data: ${!!userData} (ID: ${userData?.id || 'none'})`);
+            console.log(`- Complete user data: ${!!userData} (ID: ${userData?.id || 'none'}, Name: ${userData?.firstName || 'missing'} ${userData?.lastName || 'missing'})`);
             console.log(`- Within refresh window: ${isWithinWindow}`);
             
             if (isMounted.current) {
@@ -407,6 +416,10 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               
               return true; // Indicate successful quick initialization
             }
+          }
+          
+          if (token && userData && userData.id && isWithinWindow) {
+            console.log('[JWTAuthContext] Quick initialization FAILED - incomplete user data, will fetch from API');
           }
           
           console.log('[JWTAuthContext] Quick initialization criteria NOT met, proceeding with normal flow');
@@ -552,41 +565,38 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (user && user.id) {
               console.log('[JWTAuthContext] Successfully retrieved user data with valid token')
               
-              // Explicitly store the user data with our enhanced storage method
-              TokenService.storeUserData(user)
-              
-              // Also store in the older TokenStorage for backward compatibility
-              TokenStorage.storeUserData(user)
-              
-              // Double-check that data was properly stored
-              const storedUser = TokenService.getUserData()
-              if (storedUser && storedUser.id === user.id) {
-                console.log('[JWTAuthContext] Verified user data was successfully stored')
-              } else {
-                console.warn('[JWTAuthContext] User data storage verification failed')
-              }
-              
-              if (isMounted.current) {
-                dispatch({
-                  type: AUTH_TYPES.INITIALIZE,
-                  payload: {
-                    isAuthenticated: true,
-                    user,
-                  },
-                })
+              // NEW: Record successful login timestamp
+              TokenService.setLastSuccessfulLogin()
+              console.log('[JWTAuthContext] Recorded login timestamp for refresh protection')
+
+              // Ensure user data is stored properly in both storage services
+              if (user && user.id) {
+                // ENHANCEMENT: Validate user data completeness and log warning if incomplete
+                const isCompleteUserData = 
+                  user.id && 
+                  user.email && 
+                  user.firstName && 
+                  user.lastName && 
+                  user.role;
                 
-                // Also trigger an explicit login success event
-                dispatch({
-                  type: AUTH_TYPES.LOGIN_SUCCESS,
-                  payload: {
-                    user,
-                  },
-                })
+                if (!isCompleteUserData) {
+                  console.warn('[JWTAuthContext] WARNING: Incomplete user data after login', {
+                    id: !!user.id,
+                    email: !!user.email,
+                    firstName: !!user.firstName,
+                    lastName: !!user.lastName,
+                    role: !!user.role
+                  });
+                } else {
+                  console.log('[JWTAuthContext] Complete user data verified and stored after login');
+                }
                 
-                // Broadcast the event for other components
-                window.dispatchEvent(new CustomEvent('jwt:authSuccess', { detail: { user } }))
+                // Store a quick reference for ProtectedRoute to use during redirects
+                TokenService.markLoginRedirect(user.id.toString(), user.role)
                 
-                return
+                // Explicitly store user data in both services
+                TokenService.storeUserData(user)
+                TokenStorage.storeUserData(user)
               }
             }
           } catch (userError) {
@@ -760,61 +770,32 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Ensure user data is stored properly in both storage services
       if (user && user.id) {
+        // ENHANCEMENT: Validate user data completeness and log warning if incomplete
+        const isCompleteUserData = 
+          user.id && 
+          user.email && 
+          user.firstName && 
+          user.lastName && 
+          user.role;
+        
+        if (!isCompleteUserData) {
+          console.warn('[JWTAuthContext] WARNING: Incomplete user data after login', {
+            id: !!user.id,
+            email: !!user.email,
+            firstName: !!user.firstName,
+            lastName: !!user.lastName,
+            role: !!user.role
+          });
+        } else {
+          console.log('[JWTAuthContext] Complete user data verified and stored after login');
+        }
+        
         // Store a quick reference for ProtectedRoute to use during redirects
         TokenService.markLoginRedirect(user.id.toString(), user.role)
         
         // Explicitly store user data in both services
         TokenService.storeUserData(user)
         TokenStorage.storeUserData(user)
-        
-        // Verify the data was stored correctly
-        const storedData = TokenService.getUserData()
-        if (storedData && storedData.id === user.id) {
-          console.log('[JWTAuthContext] Verified user data was stored successfully')
-        } else {
-          console.warn('[JWTAuthContext] User data storage verification failed')
-        }
-        
-        console.log('[JWTAuthContext] Login redirect marked with user ID and role')
-      }
-
-      // Perform a complete validation after login to ensure we're in a consistent state
-      const authState = validateAuthState()
-      if (!authState.isAuthenticated && authState.tokenExists) {
-        console.warn(
-          '[JWTAuthContext] Token exists but validation failed. Possible inconsistent state.'
-        )
-      }
-
-      // If we have the user data, ensure state is updated
-      if (user && user.id) {
-        if (isMounted.current) {
-          console.log('[JWTAuthContext] Dispatching LOGIN with user:', user)
-          dispatch({
-            type: AUTH_TYPES.LOGIN,
-            payload: {
-              user,
-            },
-          })
-
-          // Also explicitly dispatch a LOGIN_SUCCESS action to ensure state is updated
-          dispatch({
-            type: AUTH_TYPES.LOGIN_SUCCESS,
-            payload: {
-              user,
-            },
-          })
-
-          // Force a global event for other components to catch
-          window.dispatchEvent(
-            new CustomEvent('jwt:authSuccess', {
-              detail: { user },
-            })
-          )
-        }
-      } else {
-        console.error('[JWTAuthContext] No user data available after login')
-        throw new Error('Failed to get user data after login')
       }
 
       // Return the user data after successful login
