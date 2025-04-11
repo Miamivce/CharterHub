@@ -9,6 +9,8 @@ export const USER_DATA_KEY = 'user_data'
 export const REMEMBER_ME_KEY = 'remember_me'
 export const RATE_LIMIT_KEY = 'api_rate_limit'
 export const CSRF_TOKEN_KEY = 'csrf_token'
+export const LAST_LOGIN_KEY = 'last_successful_login'
+export const AUTH_REFRESH_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
 
 // Helper to determine which storage to use based on rememberMe preference
 const getStorageType = (): Storage => {
@@ -399,6 +401,62 @@ export const TokenService = {
       console.error('[TokenService] Error synchronizing storage data:', error);
       return false;
     }
+  },
+  
+  // Record successful login timestamp for refresh protection
+  setLastSuccessfulLogin: () => {
+    try {
+      const timestamp = Date.now();
+      localStorage.setItem(LAST_LOGIN_KEY, timestamp.toString());
+      sessionStorage.setItem(LAST_LOGIN_KEY, timestamp.toString());
+      console.log(`[TokenService] Recorded successful login timestamp: ${new Date(timestamp).toISOString()}`);
+      return timestamp;
+    } catch (error) {
+      console.error('[TokenService] Error setting last login timestamp:', error);
+      return 0;
+    }
+  },
+  
+  // Get last successful login timestamp
+  getLastSuccessfulLogin: () => {
+    try {
+      // Check both storage types for maximum resilience
+      const sessionTimestamp = sessionStorage.getItem(LAST_LOGIN_KEY);
+      const localTimestamp = localStorage.getItem(LAST_LOGIN_KEY);
+      
+      // Use the more recent timestamp if both exist
+      if (sessionTimestamp && localTimestamp) {
+        const sessionTime = parseInt(sessionTimestamp, 10);
+        const localTime = parseInt(localTimestamp, 10);
+        return Math.max(sessionTime, localTime);
+      }
+      
+      // Otherwise use whichever exists
+      const timestamp = parseInt(sessionTimestamp || localTimestamp || '0', 10);
+      
+      if (timestamp > 0) {
+        console.log(`[TokenService] Found last login timestamp: ${new Date(timestamp).toISOString()}`);
+      }
+      
+      return timestamp;
+    } catch (error) {
+      console.error('[TokenService] Error getting last login timestamp:', error);
+      return 0;
+    }
+  },
+  
+  // Check if we're within the auth refresh window (1 hour by default)
+  isWithinAuthRefreshWindow: () => {
+    const lastLogin = TokenService.getLastSuccessfulLogin();
+    if (!lastLogin) return false;
+    
+    const now = Date.now();
+    const elapsed = now - lastLogin;
+    const isWithin = elapsed < AUTH_REFRESH_WINDOW;
+    
+    console.log(`[TokenService] Auth refresh window check: ${isWithin ? 'WITHIN' : 'OUTSIDE'} window (${Math.round(elapsed / 1000 / 60)} minutes elapsed)`);
+    
+    return isWithin;
   }
 };
 

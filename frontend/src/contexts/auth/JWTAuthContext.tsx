@@ -335,6 +335,91 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // ENHANCED: First, sync storage to prevent data loss
         TokenService.syncStorageData();
         
+        // NEW: Add quickInit to prevent API call cancellation during refresh
+        const quickInit = () => {
+          // Check if we have all the necessary elements for quick initialization
+          const token = TokenService.getToken();
+          const userData = TokenService.getUserData();
+          const isWithinWindow = TokenService.isWithinAuthRefreshWindow();
+          
+          if (token && userData && userData.id && isWithinWindow) {
+            console.log('[JWTAuthContext] Quick initialization criteria met:');
+            console.log(`- Valid token: ${!!token} (length: ${token ? token.length : 0})`);
+            console.log(`- User data: ${!!userData} (ID: ${userData?.id || 'none'})`);
+            console.log(`- Within refresh window: ${isWithinWindow}`);
+            
+            if (isMounted.current) {
+              // Immediately set authenticated state with the cached user data
+              dispatch({
+                type: AUTH_TYPES.INITIALIZE,
+                payload: {
+                  isAuthenticated: true,
+                  user: userData,
+                },
+              });
+              
+              // Also ensure correct login success state
+              dispatch({
+                type: AUTH_TYPES.LOGIN_SUCCESS,
+                payload: {
+                  user: userData,
+                },
+              });
+              
+              // Broadcast the event for other components
+              window.dispatchEvent(new CustomEvent('jwt:authSuccess', { 
+                detail: { user: userData }
+              }));
+              
+              // Still refresh user data in the background for eventual consistency
+              setTimeout(() => {
+                try {
+                  jwtApi.getCurrentUser()
+                    .then(freshUserData => {
+                      if (freshUserData && freshUserData.id) {
+                        TokenService.storeUserData(freshUserData);
+                        
+                        // Do NOT disrupt the existing authentication state if this fails
+                        // Only update data if successful
+                        if (isMounted.current) {
+                          dispatch({
+                            type: AUTH_TYPES.USER_DATA_UPDATED,
+                            payload: {
+                              user: freshUserData,
+                            },
+                          });
+                          
+                          window.dispatchEvent(new CustomEvent('jwt:userDataRefreshed', { 
+                            detail: { user: freshUserData }
+                          }));
+                        }
+                      }
+                    })
+                    .catch(err => {
+                      // Just log errors, but don't disrupt authentication
+                      console.warn('[JWTAuthContext] Background user refresh failed, continuing with cached data:', err);
+                    });
+                } catch (refreshError) {
+                  // Just log errors, don't disrupt authentication
+                  console.warn('[JWTAuthContext] Error setting up background refresh, continuing with cached data:', refreshError);
+                }
+              }, 1000); // Longer delay to prioritize UI rendering
+              
+              return true; // Indicate successful quick initialization
+            }
+          }
+          
+          console.log('[JWTAuthContext] Quick initialization criteria NOT met, proceeding with normal flow');
+          return false; // Proceed with normal initialization
+        };
+        
+        // Try quick initialization first, only proceed with normal flow if it fails
+        if (quickInit()) {
+          console.log('[JWTAuthContext] Quick initialization successful, skipping API validation');
+          return; // Exit early since we're already authenticated
+        }
+        
+        // Continue with the normal initialization flow
         // ENHANCED: First check for token without waiting for API
         const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
         
@@ -640,6 +725,10 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const user = await jwtApi.login(email, password, rememberMe, targetRole)
       console.log('[JWTAuthContext] Login successful, user data received:', user)
+      
+      // NEW: Record successful login timestamp
+      TokenService.setLastSuccessfulLogin()
+      console.log('[JWTAuthContext] Recorded login timestamp for refresh protection')
 
       // Ensure user data is stored properly in both storage services
       if (user && user.id) {

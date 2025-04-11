@@ -56,9 +56,19 @@ export const ProtectedRoute = ({
     const sessionUserId = sessionStorage.getItem('auth_user_id');
     const sessionUserRole = sessionStorage.getItem('auth_user_role');
     
+    // NEW: Also check if we're within the refresh window
+    const isWithinRefreshWindow = TokenService.isWithinAuthRefreshWindow();
+    
     // If critical auth data exists in session storage, we can render immediately
     if (sessionToken && sessionUserId && sessionUserRole) {
       console.log(`[ProtectedRoute ${section}] ULTRA-EARLY BYPASS: Found complete auth data in session storage`);
+      console.log(`[ProtectedRoute ${section}] Within refresh window: ${isWithinRefreshWindow ? 'YES' : 'NO'}`);
+      
+      // Use a more permissive bypass if within refresh window
+      // This prevents API cancellation issues during refresh
+      if (isWithinRefreshWindow) {
+        console.log(`[ProtectedRoute ${section}] Using refresh window bypass to prevent API cancellation`);
+      }
       
       // Check if this role has access to this section
       const userIsAdmin = ADMIN_ROLES.includes(sessionUserRole);
