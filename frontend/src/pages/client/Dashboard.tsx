@@ -293,7 +293,14 @@ export function ClientDashboard() {
       } catch (err) {
         console.error('Failed to load dashboard data:', err)
         if (isMounted) {
-          setError('Failed to load dashboard data. Please try again.')
+          // Use the error handling utility to get a user-friendly message
+          import('@/utils/errorHandling').then(({ getUserFriendlyErrorMessage }) => {
+            const message = getUserFriendlyErrorMessage(err);
+            setError(message || 'Failed to load dashboard data. Please try again.');
+          }).catch(() => {
+            // Fallback if import fails
+            setError('Failed to load dashboard data. Please try again.');
+          });
         }
       } finally {
         if (isMounted) {
@@ -322,7 +329,31 @@ export function ClientDashboard() {
         <p className="text-text-secondary mt-2">Explore your luxury charter experience</p>
       </div>
 
-      {error && <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+      {error && (
+        <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-center justify-between">
+          <div className="flex items-center">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-5 w-5 mr-2" 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-4 px-3 py-1 bg-white text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors font-medium text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

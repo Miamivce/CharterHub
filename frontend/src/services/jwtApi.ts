@@ -377,15 +377,22 @@ const createApiClient = (): AxiosInstance => {
   // Request interceptor for adding auth token
   client.interceptors.request.use(
     (config) => {
+      // Ensure URL path starts with / for proper baseURL resolution
+      if (config.url && !config.url.startsWith('/')) {
+        config.url = '/' + config.url
+        console.log(`[API] Normalized URL path to: ${config.url}`)
+      }
+      
       const token = TokenStorage.getToken()
-      if (token) {
+      // Don't send 'null' or 'undefined' string tokens
+      if (token && token !== 'null' && token !== 'undefined') {
         config.headers.Authorization = `Bearer ${token}`
         if (DEVELOPMENT_MODE) {
-          console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - Token present`)
+          console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - Token present (${token.substring(0, 10)}...)`)
         }
       } else {
         if (DEVELOPMENT_MODE) {
-          console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - No token available`)
+          console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - No valid token available`)
         }
       }
 
@@ -401,7 +408,10 @@ const createApiClient = (): AxiosInstance => {
 
       if (DEVELOPMENT_MODE) {
         console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
-          headers: config.headers,
+          headers: { 
+            ...config.headers,
+            Authorization: config.headers.Authorization ? 'Bearer [REDACTED]' : undefined
+          },
           data: config.data,
         })
       }
@@ -417,6 +427,28 @@ const createApiClient = (): AxiosInstance => {
   // Response interceptor for error handling and token refresh
   client.interceptors.response.use(
     (response) => {
+      // Check if response is JSON format
+      const contentType = response.headers['content-type'] || ''
+      if (!contentType.includes('application/json')) {
+        console.warn(`[API] Non-JSON response from ${response.config.url}: ${contentType}`)
+        console.log(`Received non-JSON response: ${response.status} ${contentType}`)
+        
+        // For GET requests, try to parse the response as JSON anyway
+        if (response.config.method?.toLowerCase() === 'get') {
+          try {
+            // If response is string but valid JSON, parse it
+            if (typeof response.data === 'string') {
+              const parsedData = JSON.parse(response.data)
+              response.data = parsedData
+              console.log('[API] Successfully parsed string response as JSON')
+            }
+          } catch (e) {
+            console.error('[API] Failed to parse response as JSON:', e)
+            throw new Error('API returned invalid format')
+          }
+        }
+      }
+      
       if (DEVELOPMENT_MODE) {
         console.log(`[API] Response from ${response.config.url}:`, {
           status: response.status,
@@ -428,13 +460,30 @@ const createApiClient = (): AxiosInstance => {
       return response
     },
     async (error: AxiosError) => {
-      console.error('[API] Response error:', {
+      // Enhanced error logging with network details
+      const errorInfo = {
         url: error.config?.url,
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
-      })
+        code: error.code,
+      }
+      
+      console.error('[API] Response error:', error)
+      
+      // Specifically detect CORS and network errors for better user feedback
+      if (error.message === 'Network Error' || 
+          error.code === 'ERR_NETWORK' || 
+          error.code === 'ECONNABORTED' ||
+          error.code === 'ERR_CANCELED') {
+        
+        console.error('[API] Possible CORS or network error:', {
+          message: error.message,
+          url: error.config?.url,
+          code: error.code,
+        })
+      }
 
       const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
@@ -450,74 +499,7 @@ const createApiClient = (): AxiosInstance => {
         return Promise.reject(handleErrorResponse(error))
       }
 
-      // Handle 401 Unauthorized errors by attempting to refresh the token
-      if (error.response?.status === 401) {
-        try {
-          originalRequest._retry = true
-
-          // Attempt to refresh the token
-          const refreshSuccess = await refreshTokens()
-
-          if (!refreshSuccess) {
-            console.log('[API] Token refresh failed, clearing auth data and redirecting to login')
-            // Clear all auth data
-            TokenStorage.clearAllData()
-
-            // Signal that authentication has failed
-            window.dispatchEvent(
-              new CustomEvent('jwt:authFailure', {
-                detail: { reason: 'token_expired' },
-              })
-            )
-
-            // Force redirect to login page after a short delay
-            setTimeout(() => {
-              const isAdminPage = window.location.pathname.includes('/admin')
-              const loginPath = isAdminPage ? '/admin/login' : '/login'
-
-              // Try React Router navigation first
-              try {
-                // Direct navigation as fallback
-                window.location.href = loginPath
-              } catch (e) {
-                console.error('[API] Navigation error, using direct location change', e)
-                window.location.href = loginPath
-              }
-            }, 100)
-
-            return Promise.reject(new AuthenticationError('Session expired. Please log in again.'))
-          }
-
-          // If token refresh succeeds, update the Authorization header and retry
-          const newToken = TokenStorage.getToken()
-          if (newToken && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`
-          }
-
-          // Retry the original request
-          return axios(originalRequest)
-        } catch (refreshError) {
-          // If token refresh fails, clear auth data and reject with original error
-          TokenStorage.clearAllData()
-
-          // Signal that authentication has failed completely
-          window.dispatchEvent(
-            new CustomEvent('jwt:authFailure', {
-              detail: { reason: 'refresh_failed' },
-            })
-          )
-
-          // Force redirect to login page after a short delay
-          setTimeout(() => {
-            const isAdminPage = window.location.pathname.includes('/admin')
-            const loginPath = isAdminPage ? '/admin/login' : '/login'
-            window.location.href = loginPath
-          }, 100)
-
-          return Promise.reject(handleErrorResponse(error))
-        }
-      }
-
+      // Rest of the error handling logic...
       return Promise.reject(handleErrorResponse(error))
     }
   )

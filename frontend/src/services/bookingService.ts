@@ -226,7 +226,7 @@ export const bookingService = {
 // Fetch bookings for a specific customer
 export async function getBookingsByCustomerId(customerId: string): Promise<BookingWithDetails[]> {
   try {
-    console.log(`Fetching bookings for authenticated user (customer ID: ${customerId})`);
+    console.log(`Fetching bookings for client user (ID: ${customerId})`);
     
     const token = getAuthToken();
     // If token is null or undefined, don't attempt the request
@@ -235,11 +235,12 @@ export async function getBookingsByCustomerId(customerId: string): Promise<Booki
       throw new Error('No valid authentication token');
     }
     
-    console.log('Sending request to:', `${API_BASE_URL}/api/client/bookings.php`);
+    const endpoint = `${API_BASE_URL}/api/client/bookings.php?user_id=${customerId}`;
+    console.log('Sending request to:', endpoint);
     
     // The client bookings endpoint automatically filters by the authenticated user
-    // No need to pass customer_id as it's determined from the JWT token
-    const response = await fetch(`${API_BASE_URL}/api/client/bookings.php`, {
+    // We pass user_id as a querystring parameter for additional filtering/debugging
+    const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -248,22 +249,59 @@ export async function getBookingsByCustomerId(customerId: string): Promise<Booki
       credentials: 'include' // Include cookies in the request
     });
     
-    console.log('Response status:', response.status, response.statusText);
+    console.log('Response status:', response.status);
     
+    // Handle non-200 responses
     if (!response.ok) {
-      throw new Error(`Failed to fetch customer bookings: ${response.statusText}`);
+      throw new Error(`Failed to fetch bookings: ${response.status} ${response.statusText}`);
     }
-
+    
+    // Check content type for proper JSON response
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.log(`Received non-JSON response: ${response.status} ${contentType}`);
+      
+      // Try to parse response as JSON anyway
+      try {
+        const text = await response.text();
+        // If response is empty, return empty array
+        if (!text.trim()) {
+          console.warn('Empty response received');
+          return [];
+        }
+        
+        // Try to parse text as JSON
+        const data = JSON.parse(text);
+        if (data.success && Array.isArray(data.data)) {
+          return data.data;
+        } else if (data.success && data.data) {
+          return [data.data];
+        } else {
+          console.error('Response format issue:', data);
+          throw new Error('API returned unexpected data format');
+        }
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        throw new Error('API returned invalid format');
+      }
+    }
+    
+    // Parse response as JSON
     const data = await response.json();
     
+    // Validate response structure
     if (!data.success) {
-      throw new Error(data.message || 'Failed to fetch customer bookings');
+      console.error('API returned error:', data.message || 'Unknown error');
+      throw new Error(data.message || 'Failed to fetch bookings');
     }
-
-    console.log(`Found ${data.data?.length || 0} bookings for authenticated user`);
-    return data.data || [];
+    
+    // Ensure data.data is an array
+    const bookings = Array.isArray(data.data) ? data.data : [];
+    console.log(`Retrieved ${bookings.length} bookings`);
+    
+    return bookings;
   } catch (error) {
-    console.error('Error fetching customer bookings:', error);
-    throw new Error(`Failed to fetch customer bookings: ${(error as Error).message}`);
+    console.error('Error fetching client bookings:', error);
+    throw error;
   }
 }
