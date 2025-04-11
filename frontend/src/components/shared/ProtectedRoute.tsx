@@ -732,3 +732,7 @@ export const ProtectedRoute = ({
 }
 
 export default ProtectedRoute
+
+// Force Vercel rebuild trigger
+// This component handles protected routes with role-based access control
+// and provides optimized rendering for authenticated users
