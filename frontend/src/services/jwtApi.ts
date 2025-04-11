@@ -640,10 +640,15 @@ const jwtApi = {
       }
     } catch (error: any) {
       // Improved error handling
-      if (error.name === 'AbortError') {
-        console.error('[jwtApi] getCurrentUser - Request timed out')
-        throw new ApiError('Request timed out', 408)
+      if (error.name === 'AbortError' || error.name === 'CanceledError' || 
+          error.code === 'ERR_CANCELED' || error.message === 'canceled') {
+        console.log('[jwtApi] getCurrentUser - Request aborted or canceled during navigation');
+        // Return a special error that will be ignored by the ErrorBoundary
+        const cancelError = new ApiError('canceled', 499);
+        cancelError.name = 'CanceledError';
+        return Promise.reject(cancelError);
       }
+      
       // Handle 401 errors more gracefully
       if (error.response && error.response.status === 401) {
         console.log('[jwtApi] getCurrentUser - Authentication failed (401)')

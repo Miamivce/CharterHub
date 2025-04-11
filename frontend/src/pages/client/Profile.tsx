@@ -83,6 +83,9 @@ export function Profile() {
     // Use a ref to make sure we only run this once
     if (!didInitialRefreshRef.current) {
       didInitialRefreshRef.current = true
+      
+      // Create an AbortController to cancel requests if the component unmounts
+      const abortController = new AbortController();
 
       const doInitialRefresh = async () => {
         try {
@@ -90,6 +93,16 @@ export function Profile() {
           const refreshedUser = await refreshUserData()
           debugLog(`Initial refresh successful, timestamp: ${refreshedUser?._timestamp}`)
         } catch (error) {
+          // Ignore canceled requests during unmount/navigation
+          if (error instanceof Error && 
+             (error.name === 'CanceledError' || 
+              error.message === 'canceled' || 
+              error.name === 'AbortError' ||
+              (error.name.includes('ApiError') && error.message === 'canceled'))) {
+            debugLog('API request was canceled during navigation - this is normal')
+            return;
+          }
+          
           debugLog(
             `Error during initial refresh: ${error instanceof Error ? error.message : String(error)}`
           )

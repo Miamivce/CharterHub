@@ -22,17 +22,22 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // FIX: Ignore React Router navigation cancellation errors
     if (
       error.message.includes('Minified React error #300') ||
+      error.message.includes('Minified React error #310') ||
       error.message.includes('Suspense') ||
       error.message.includes('lazy') ||
       error.message.includes('navigation') ||
-      error.message.includes('cancel')
+      error.message.includes('cancel') ||
+      error.message.includes('canceled') ||
+      error.name === 'CanceledError' ||
+      error.name === 'AbortError' ||
+      (error instanceof Error && error.name.includes('ApiError') && error.message.includes('canceled')) ||
+      (error.stack && error.stack.includes('ERR_CANCELED'))
     ) {
-      console.log('Ignoring navigation-related error in error boundary:', error.message)
+      console.log('Ignoring navigation/cancelation error in error boundary:', error.message)
       return {
-        hasError: false, // Don't show the error UI for navigation errors
+        hasError: false,
         error,
         errorInfo: null,
       }
@@ -46,17 +51,21 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // CRITICAL FIX: Ignore React Router navigation errors
-    const isNavigationError = 
+    const isIgnorableError = 
       error.message.includes('Minified React error #300') ||
+      error.message.includes('Minified React error #310') ||
       error.message.includes('Suspense') ||
       error.message.includes('lazy') ||
       error.message.includes('navigation') ||
-      error.message.includes('cancel');
+      error.message.includes('cancel') ||
+      error.message.includes('canceled') ||
+      error.name === 'CanceledError' ||
+      error.name === 'AbortError' ||
+      (error instanceof Error && error.name.includes('ApiError') && error.message.includes('canceled')) ||
+      (error.stack && error.stack.includes('ERR_CANCELED'));
       
-    if (isNavigationError) {
-      console.log('Navigation error caught and ignored by ErrorBoundary:', error.message);
-      // Reset error state to prevent UI from showing error
+    if (isIgnorableError) {
+      console.log('Navigation or cancellation error caught and ignored by ErrorBoundary:', error.message);
       setTimeout(() => {
         if (this.state.hasError) {
           this.setState({
@@ -74,7 +83,6 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     })
 
-    // Log error to your error tracking service
     console.error('Error caught by boundary:', error, errorInfo)
   }
 
@@ -84,13 +92,11 @@ export class ErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
     })
-    // Attempt to recover by reloading the page
     window.location.reload()
   }
 
   render() {
     if (this.state.hasError) {
-      // ENHANCEMENT: Only show the error UI when we have a real error, not navigation issues
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm space-y-6">
