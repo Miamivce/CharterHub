@@ -179,7 +179,7 @@ export function DestinationDetail() {
       <div className="flex items-center space-x-4">
         <Button
           variant="secondary"
-          onClick={() => navigate('/destinations')}
+          onClick={() => navigate('/client/destinations')}
           className="flex items-center space-x-2"
         >
           <ChevronLeftIcon className="h-5 w-5" />
