@@ -139,7 +139,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col min-h-screen z-10">
         {/* Logo */}
         <div className="h-16 border-b border-gray-200 flex items-center px-4">
-          <Link to="/dashboard" className="flex items-center space-x-1">
+          <Link to="/client/dashboard" className="flex items-center space-x-1">
             <div className="h-16 w-16 flex-shrink-0">
               <img
                 src="/images/BLUE HQ.png"
