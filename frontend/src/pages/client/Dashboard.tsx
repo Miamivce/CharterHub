@@ -407,7 +407,7 @@ export function ClientDashboard() {
             <Button
               variant="secondary"
               className="border-primary text-primary hover:bg-primary/5"
-              onClick={() => navigate('/yachts')}
+              onClick={() => navigate('/client/yachts')}
             >
               View All
             </Button>
@@ -421,7 +421,7 @@ export function ClientDashboard() {
                 featuredYacht.featuredImage ||
                 'https://images.unsplash.com/photo-1540946485063-a23a339b98df?w=800&q=80'
               }
-              onClick={() => navigate(`/yachts/${featuredYacht.id}`)}
+              onClick={() => navigate(`/client/yachts/${featuredYacht.id}`)}
               type="yacht"
             />
           ) : (
@@ -440,7 +440,7 @@ export function ClientDashboard() {
             <Button
               variant="secondary"
               className="border-primary text-primary hover:bg-primary/5"
-              onClick={() => navigate('/destinations')}
+              onClick={() => navigate('/client/destinations')}
             >
               View All
             </Button>
@@ -454,7 +454,7 @@ export function ClientDashboard() {
                 featuredDestination.featuredImage ||
                 'https://images.unsplash.com/photo-1530538095376-a4936b35b5f0?w=800&q=80'
               }
-              onClick={() => navigate(`/destinations/${featuredDestination.id}`)}
+              onClick={() => navigate(`/client/destinations/${featuredDestination.id}`)}
               type="destination"
             />
           ) : (
