@@ -75,14 +75,11 @@ export function Destinations() {
           <Card
             key={destination.id}
             className="overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.02] border-primary/10"
-            onClick={() => navigate(`/destinations/${destination.id}`)}
+            onClick={() => navigate(`/client/destinations/${destination.id}`)}
           >
             <div className="aspect-w-16 aspect-h-9">
               <ImageWithFallback
-                src={
-                  destination.featuredImage ||
-                  `https://source.unsplash.com/featured/800x450?${destination.name.toLowerCase()}&${destination.id}`
-                }
+                src={destination.featuredImage || ''}
                 alt={destination.name}
                 className="w-full h-full object-cover rounded-t-lg"
                 type="destination"
