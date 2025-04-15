@@ -6,6 +6,8 @@ import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
 import jwtApi from '@/services/jwtApi'
 import { Button, Input } from '@/components/shared'
 import { User } from '@/contexts/types'
+// Import domain utilities
+import { isAdminDomain, ADMIN_ROLES } from '@/utils/domainUtils'
 
 // Asset imports
 const backgroundImageUrl = '/images/adminbackground.jpg'
@@ -26,6 +28,19 @@ export function AdminLogin() {
   const navigationAttempted = useRef(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+
+  // Check if this is production and we're on the correct domain
+  useEffect(() => {
+    // In production, make sure we're on admin.yachtstory.be
+    if (process.env.NODE_ENV === 'production') {
+      const onCorrectDomain = isAdminDomain();
+      
+      if (!onCorrectDomain) {
+        console.log('[Admin Login] Not on admin domain, redirecting');
+        window.location.href = 'https://admin.yachtstory.be';
+      }
+    }
+  }, []);
 
   // Get the redirect path from location state or default to /admin/dashboard
   const from = location.state?.from?.pathname || '/admin/dashboard'
@@ -55,7 +70,7 @@ export function AdminLogin() {
     (user: User) => {
       console.log('[Admin Login] Login successful, handling navigation for user role:', user.role)
 
-      if (user.role !== 'admin' && user.role !== 'administrator') {
+      if (!ADMIN_ROLES.includes(user.role)) {
         console.log('[Admin Login] User is not an admin, showing error')
         setLoginError('You do not have admin privileges.')
         logout()
@@ -64,6 +79,14 @@ export function AdminLogin() {
 
       // We have a verified admin user, navigate to admin dashboard
       console.log('[Admin Login] Admin user verified, navigating to dashboard')
+      
+      // In production, use full domain URL
+      if (process.env.NODE_ENV === 'production') {
+        forceNavigate('https://admin.yachtstory.be/dashboard');
+        return;
+      }
+      
+      // In development, use path
       // Small delay to ensure all state is updated
       setTimeout(() => {
         forceNavigate(from)

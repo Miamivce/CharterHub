@@ -19,6 +19,12 @@ import jwtApi, {
   validateAuthState,
 } from '@/services/jwtApi'
 import { TokenService } from '@/services/tokenService'
+import { 
+  redirectToCorrectDomain, 
+  getBaseUrlForRole, 
+  ADMIN_ROLES, 
+  CLIENT_ROLES 
+} from '@/utils/domainUtils';
 
 // Auth state interface
 export interface AuthState {
@@ -251,7 +257,17 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         })
       }
 
-      // Redirect to login page based on current URL path
+      // For production environments, use domain-based redirect
+      if (process.env.NODE_ENV === 'production') {
+        // Default to client login page (most users are clients)
+        const loginUrl = `https://app.yachtstory.be/login`;
+        
+        console.log('[JWTAuthContext] Redirecting to login page:', loginUrl);
+        window.location.href = loginUrl;
+        return;
+      }
+
+      // In development, redirect to login page based on current URL path
       const isAdminPage = window.location.pathname.includes('/admin')
       const loginPath = isAdminPage ? '/admin/login' : '/login'
 
@@ -274,7 +290,17 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         })
       }
 
-      // Redirect to login page based on current URL path
+      // For production environments, use domain-based redirect
+      if (process.env.NODE_ENV === 'production') {
+        // Default to client login page (most users are clients)
+        const loginUrl = `https://app.yachtstory.be/login`;
+        
+        console.log('[JWTAuthContext] Redirecting to login page after token expiration:', loginUrl);
+        window.location.href = loginUrl;
+        return;
+      }
+
+      // In development, redirect to login page based on current URL path
       const isAdminPage = window.location.pathname.includes('/admin')
       const loginPath = isAdminPage ? '/admin/login' : '/login'
 
@@ -786,7 +812,7 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             lastName: !!user.lastName,
             role: !!user.role
           });
-      } else {
+        } else {
           console.log('[JWTAuthContext] Complete user data verified and stored after login');
         }
         
@@ -796,6 +822,20 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Explicitly store user data in both services
         TokenService.storeUserData(user)
         TokenStorage.storeUserData(user)
+        
+        // For production environments, redirect user to the appropriate domain based on role
+        if (process.env.NODE_ENV === 'production') {
+          // Get base URL for user's role (admin.yachtstory.be or app.yachtstory.be)
+          const baseUrl = getBaseUrlForRole(user.role);
+          const dashboardUrl = `${baseUrl}/dashboard`;
+          
+          console.log('[JWTAuthContext] Redirecting to domain-based dashboard:', dashboardUrl);
+          
+          // Small delay to allow client-side state to update
+          setTimeout(() => {
+            window.location.href = dashboardUrl;
+          }, 100);
+        }
       }
 
       // Return the user data after successful login
@@ -845,13 +885,30 @@ export const JWTAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const handleLogout = async () => {
     updateLoading('logout', true)
     updateError('logout', null)
+    console.log('[JWTAuthContext] Logout initiated')
 
     try {
+      // Call the API to invalidate the refresh token
       await jwtApi.logout()
+      console.log('[JWTAuthContext] Logout API call successful')
 
-      if (isMounted.current) {
-        dispatch({ type: AUTH_TYPES.LOGOUT })
+      // Update auth state
+      dispatch({
+        type: AUTH_TYPES.LOGOUT,
+      })
+
+      // Clear tokens from storage
+      TokenService.clearTokens()
+      TokenStorage.clearAllData()
+
+      // In production, redirect to the client domain login page
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = 'https://app.yachtstory.be/login';
+        return;
       }
+
+      // In development, redirect to the login page
+      window.location.href = '/login'
     } catch (error) {
       updateError('logout', error as Error)
       throw error

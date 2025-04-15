@@ -4,6 +4,15 @@ import { useJWTAuth } from '@/contexts/auth/JWTAuthContext'
 import { LoadingScreen } from '@/components/shared/LoadingScreen'
 import jwtApi, { TokenStorage, validateAuthState } from '@/services/jwtApi'
 import { TokenService } from '@/services/tokenService'
+// Import domain utilities
+import { 
+  isAdminDomain, 
+  isClientDomain, 
+  ADMIN_ROLES, 
+  CLIENT_ROLES,
+  getBaseUrlForRole,
+  redirectToCorrectDomain
+} from '@/utils/domainUtils'
 
 // Local implementation of validateTokenStorage since it's not exported from jwtApi
 const validateTokenStorage = () => {
@@ -24,9 +33,9 @@ type ProtectedRouteProps = {
   section?: 'admin' | 'client'
 }
 
-// Define role groups for consistent evaluation
-const ADMIN_ROLES = ['admin', 'administrator']
-const CLIENT_ROLES = ['client', 'user', 'customer']
+// Use domain utility constants instead of redefining here
+// const ADMIN_ROLES = ['admin', 'administrator']
+// const CLIENT_ROLES = ['client', 'user', 'customer']
 
 /**
  * ProtectedRoute - A robust route guard component with predictable authentication behavior
@@ -45,6 +54,13 @@ export const ProtectedRoute = ({
     TokenService.syncStorageData();
   }, [location.pathname]);
   
+  // Check if user is on the correct domain for their role (in production)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production' && user?.role) {
+      redirectToCorrectDomain(user.role);
+    }
+  }, [user?.role]);
+
   // ENHANCED: Direct session storage check for dashboard routes
   // This bypasses all React state and prevents render flicker
   if (location.pathname.includes('/dashboard')) {
@@ -683,7 +699,23 @@ export const ProtectedRoute = ({
   if (!routeState.accessAllowed && user) {
     // Determine appropriate redirect based on user role
     const isAdminUser = ADMIN_ROLES.includes(user.role)
+    
+    // Use domain utilities to get the correct dashboard path
     const redirectPath = isAdminUser ? '/admin/dashboard' : '/client/dashboard'
+
+    // Check if we're in production mode for domain-based redirects
+    if (process.env.NODE_ENV === 'production') {
+      const fullRedirectUrl = getBaseUrlForRole(user.role) + '/dashboard';
+      
+      console.log(
+        `[ProtectedRoute ${section}] User (role: ${user.role}) does not have required access, redirecting to:`,
+        fullRedirectUrl
+      )
+      
+      // Use window.location for domain-based redirects in production
+      window.location.href = fullRedirectUrl;
+      return null; // Return null while redirecting to avoid flashes
+    }
 
     // Only redirect if we're not already on the target dashboard
     if (location.pathname === redirectPath) {
