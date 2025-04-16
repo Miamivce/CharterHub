@@ -228,7 +228,7 @@ export class CustomerService {
       }
 
       // If direct endpoint fails, try the original endpoint
-      const response = await api.get('/api/admin/direct-customers.php')
+      const response = await api.get('/customers')
 
       // Log the response data structure for debugging
       console.log('Original customers API response:', response.data)
