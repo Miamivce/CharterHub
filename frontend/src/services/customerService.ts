@@ -5,6 +5,7 @@ import { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { debugLog } from '@/utils/logger'
 import axios from 'axios'
 import jwtApi from '@/services/jwtApi'
+import { TokenService } from '@/services/tokenService'
 
 // Use environment variable for API URL
 const api = getApi(import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000')
@@ -280,28 +281,29 @@ export class CustomerService {
 
   // Create Axios instance for direct endpoint access
   private createDirectAxiosInstance() {
-    // Get auth token from localStorage or sessionStorage
-    const getAuthToken = (): string | null => {
-      const localToken = localStorage.getItem('auth_token')
-      if (localToken) {
-        console.log('Using auth token from localStorage')
-        return localToken
+    // Use the TokenService for reliable token access
+    const token = TokenService.getToken();
+    
+    // Add detailed debug logging
+    console.log('[CustomerService] Creating direct API instance with auth token:', token ? 'Token exists' : 'No token found');
+    
+    if (!token) {
+      // Log detailed information for debugging purposes
+      console.warn('[CustomerService] Authentication token missing! Token sources:');
+      console.warn(`- localStorage.auth_token: ${localStorage.getItem('auth_token') ? 'exists' : 'missing'}`);
+      console.warn(`- sessionStorage.auth_token: ${sessionStorage.getItem('auth_token') ? 'exists' : 'missing'}`);
+      
+      // Try to get current user data to see if we're properly authenticated
+      try {
+        const userData = TokenService.getUserData();
+        console.warn(`- User data: ${userData ? `Found (ID: ${userData.id}, Role: ${userData.role})` : 'Not found'}`);
+      } catch (e) {
+        console.error('[CustomerService] Error retrieving user data:', e);
       }
-
-      const sessionToken = sessionStorage.getItem('auth_token')
-      if (sessionToken) {
-        console.log('Using auth token from sessionStorage')
-        return sessionToken
-      }
-
-      console.warn('No auth token found in storage!')
-      return null
     }
 
-    const token = getAuthToken()
-    console.log(`Auth token available: ${!!token}`)
-
-    const baseURL = import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000'
+    const baseURL = import.meta.env.VITE_PHP_API_URL || 'http://localhost:8000';
+    console.log(`[CustomerService] Using API base URL: ${baseURL}`);
 
     const instance = axios.create({
       baseURL,
@@ -309,30 +311,46 @@ export class CustomerService {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
+      withCredentials: true, // Important for CORS with credentials
       validateStatus: () => true, // Don't throw errors on non-2xx responses
-    })
+    });
 
-    // Add request interceptor to handle PUT/DELETE methods
+    // Log request details for debugging
     instance.interceptors.request.use(
       (config) => {
+        console.log(`[CustomerService] Making ${config.method?.toUpperCase()} request to ${config.url}`);
+        console.log(`[CustomerService] Auth header present: ${config.headers.Authorization ? 'Yes' : 'No'}`);
+        
         // Convert PUT/DELETE methods to POST with X-HTTP-Method-Override header
         // This avoids CORS preflight issues with PUT/DELETE methods
         if (config.method?.toUpperCase() === 'PUT' || config.method?.toUpperCase() === 'DELETE') {
-          config.headers['X-HTTP-Method-Override'] = config.method.toUpperCase()
-          config.method = 'post'
-          console.log(
-            `CustomerService: Converting ${config.headers['X-HTTP-Method-Override']} to POST with override header`
-          )
+          config.headers['X-HTTP-Method-Override'] = config.method.toUpperCase();
+          config.method = 'post';
         }
-        return config
+        return config;
       },
       (error) => {
-        console.error('CustomerService request interceptor error:', error)
-        return Promise.reject(error)
+        console.error('[CustomerService] Request interceptor error:', error);
+        return Promise.reject(error);
       }
-    )
+    );
 
-    return instance
+    // Log responses for debugging
+    instance.interceptors.response.use(
+      (response) => {
+        console.log(`[CustomerService] Response status: ${response.status} ${response.statusText}`);
+        if (response.status === 401) {
+          console.error('[CustomerService] Authentication failed - token may be invalid or expired');
+        }
+        return response;
+      },
+      (error) => {
+        console.error('[CustomerService] Response error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    return instance;
   }
 
   // Add timestamp to prevent duplicate update requests
