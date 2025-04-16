@@ -188,14 +188,32 @@ export class CustomerService {
     this.fetchInProgress = true
 
     try {
-      // Verify admin session using JWT auth
+      // First, ensure we have a valid token by explicitly validating auth state
+      try {
+        debugLog('Verifying authentication before fetching customers', 'info')
+        // This will refresh the token if needed
+        await jwtApi.verifyAuthentication()
+        
+        // Log the token after verification to ensure we have a valid one
+        const token = TokenService.getToken()
+        console.log(`[CustomerService] Auth token after verification: ${token ? 'Valid token exists' : 'No token found!'}`)
+        
+        if (!token) {
+          throw new Error('No authentication token available after verification')
+        }
+      } catch (authError) {
+        console.error('[CustomerService] Authentication verification failed:', authError)
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      
+      // Now verify admin session using JWT auth
       const currentUser = await jwtApi.getCurrentUser()
       if (!currentUser || currentUser.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required')
       }
 
       // Create a custom Axios instance for direct endpoint access
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       // First try the direct endpoint which has better error handling
       debugLog('Attempting to fetch customers from direct endpoint...', 'info')
@@ -208,7 +226,7 @@ export class CustomerService {
         })
 
         if (directResponse.status === 200 && directResponse.data.success) {
-          const customersData = directResponse.data.customers
+          const customersData = directResponse.data.customers || []
           console.log(`Found ${customersData.length} customers in direct API response`)
 
           // Map the customer data to our format
@@ -221,10 +239,12 @@ export class CustomerService {
 
           return customers
         } else {
+          console.error('[CustomerService] Direct endpoint failed with status code:', directResponse.status)
+          console.error('[CustomerService] Response data:', directResponse.data)
           debugLog('Direct endpoint failed, falling back to original endpoint...', 'info')
         }
       } catch (directError) {
-        console.error('Error with direct customers endpoint:', directError)
+        console.error('[CustomerService] Error with direct customers endpoint:', directError)
         debugLog('Direct endpoint error, falling back to original endpoint...', 'info')
       }
 
@@ -253,7 +273,7 @@ export class CustomerService {
       }
       // If we can't determine the format, use an empty array
       else {
-        console.error('Unexpected customers API response format:', response.data)
+        console.error('[CustomerService] Unexpected customers API response format:', response.data)
         customersData = []
       }
 
@@ -280,7 +300,16 @@ export class CustomerService {
   }
 
   // Create Axios instance for direct endpoint access
-  private createDirectAxiosInstance() {
+  private async createDirectAxiosInstance() {
+    // Try to refresh the token first to ensure we have a valid one
+    try {
+      console.log('[CustomerService] Attempting to refresh token before creating API instance');
+      await jwtApi.refreshTokens();
+    } catch (refreshError) {
+      console.error('[CustomerService] Token refresh failed:', refreshError);
+      // Continue anyway - we'll use whatever token we have
+    }
+    
     // Use the TokenService for reliable token access
     const token = TokenService.getToken();
     
@@ -397,7 +426,7 @@ export class CustomerService {
       debugLog('Sending update request', 'info')
 
       // Create a custom axios instance for the direct endpoint
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       // Call the direct endpoint with the updated data
       debugLog('Attempting to update customer via direct endpoint', 'info')
@@ -489,7 +518,7 @@ export class CustomerService {
       debugLog(`Fetching customer data for ID: ${id}`, 'info')
 
       // Create direct axios instance
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       try {
         // Use direct API endpoint for a single customer with ID parameter
@@ -583,7 +612,7 @@ export class CustomerService {
         debugLog(`Customer ID ${idStr} not found in cache, fetching from API...`, 'info')
         try {
           // Create a direct access instance
-          const directAxios = this.createDirectAxiosInstance()
+          const directAxios = await this.createDirectAxiosInstance()
           const response = await directAxios.get(`/api/admin/direct-customers.php?id=${idStr}`)
 
           if (response.status === 200 && response.data.success && response.data.customer) {
@@ -699,7 +728,7 @@ export class CustomerService {
       }
 
       // Create a custom axios instance for the direct endpoint
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       // Call the direct endpoint
       debugLog('Attempting to create customer via direct endpoint', 'info')
@@ -804,7 +833,7 @@ export class CustomerService {
       debugLog(`Attempting to delete customer with ID: ${id}`, 'info')
 
       // Create a custom axios instance for the direct endpoint
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       // ONLY use the /api path which has correct CORS headers
       debugLog('Trying direct API endpoint for delete', 'info')
@@ -891,7 +920,7 @@ export class CustomerService {
       let directApiAttempted = false
       try {
         directApiAttempted = true
-        const directAxios = this.createDirectAxiosInstance()
+        const directAxios = await this.createDirectAxiosInstance()
         // Add timestamp to prevent caching
         const timestamp = new Date().getTime()
         const response = await directAxios.get(
@@ -1051,7 +1080,7 @@ export class CustomerService {
 
       // Try the direct endpoint first
       try {
-        const directAxios = this.createDirectAxiosInstance()
+        const directAxios = await this.createDirectAxiosInstance()
         const timestamp = new Date().getTime()
         const response = await directAxios.post(
           '/api/admin/direct-invitations.php',
@@ -1177,7 +1206,7 @@ export class CustomerService {
 
       // Try the direct endpoint first
       try {
-        const directAxios = this.createDirectAxiosInstance()
+        const directAxios = await this.createDirectAxiosInstance()
         const directResponse = await directAxios.get(
           `/api/admin/direct-invitations.php?client_id=${customerId}`
         )
@@ -1358,7 +1387,7 @@ export class CustomerService {
 
       // Try the direct endpoint first (with proper CORS headers)
       try {
-        const directAxios = this.createDirectAxiosInstance()
+        const directAxios = await this.createDirectAxiosInstance()
         const directResponse = await directAxios.get(
           `/api/admin/direct-bookings.php?customer_id=${customerId}`
         )
@@ -1407,7 +1436,7 @@ export class CustomerService {
 
     try {
       // Create a custom axios instance for the direct endpoint
-      const directAxios = this.createDirectAxiosInstance()
+      const directAxios = await this.createDirectAxiosInstance()
 
       // Prepare the request data - only include what's needed
       const requestData = {
